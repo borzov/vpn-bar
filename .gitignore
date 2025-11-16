@@ -5,9 +5,10 @@
 # Application bundle
 VPNBarApp.app/
 
-# Icons
-*.icns
+# Icons (исключаем VPNBarApp.icns, так как он нужен для релиза)
 Icon.iconset/
+# Но включаем VPNBarApp.icns в репозиторий
+!VPNBarApp.icns
 
 # Xcode
 *.xcodeproj/
