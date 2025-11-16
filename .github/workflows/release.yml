@@ -26,11 +26,17 @@ jobs:
         chmod +x Scripts/package_app.sh
         ./Scripts/package_app.sh
         
-    - name: Remove macOS quarantine
+    - name: Code sign application
       run: |
-        # Удаляем карантин macOS для неподписанных приложений
+        # Ad-hoc подпись приложения (не требует Apple Developer аккаунта)
+        # Это помогает избежать карантина macOS при скачивании
         APP_PATH=$(find . -name "VPNBarApp.app" -type d | head -1)
         if [ -n "$APP_PATH" ]; then
+          echo "Подпись приложения..."
+          codesign --force --deep --sign - "$APP_PATH" || true
+          # Проверяем подпись
+          codesign --verify --verbose "$APP_PATH" || true
+          # Удаляем карантин на всякий случай
           xattr -dr com.apple.quarantine "$APP_PATH" || true
         fi
         
