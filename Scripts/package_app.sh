@@ -1,0 +1,105 @@
+#!/bin/bash
+
+set -e
+
+# Цвета для вывода
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Пути
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+BUILD_DIR="$PROJECT_DIR/.build/release"
+APP_NAME="VPNBarApp"
+APP_BUNDLE="$PROJECT_DIR/$APP_NAME.app"
+CONTENTS_DIR="$APP_BUNDLE/Contents"
+MACOS_DIR="$CONTENTS_DIR/MacOS"
+RESOURCES_DIR="$CONTENTS_DIR/Resources"
+
+echo -e "${GREEN}Создание .app bundle для $APP_NAME...${NC}"
+
+# Проверяем наличие исполняемого файла
+if [ ! -f "$BUILD_DIR/$APP_NAME" ]; then
+    echo -e "${RED}Ошибка: Исполняемый файл не найден. Сначала выполните: swift build -c release${NC}"
+    exit 1
+fi
+
+# Удаляем старый bundle если существует
+if [ -d "$APP_BUNDLE" ]; then
+    echo -e "${YELLOW}Удаление старого .app bundle...${NC}"
+    rm -rf "$APP_BUNDLE"
+fi
+
+# Создаем структуру директорий
+echo -e "${GREEN}Создание структуры .app bundle...${NC}"
+mkdir -p "$MACOS_DIR"
+mkdir -p "$RESOURCES_DIR"
+
+# Копируем исполняемый файл
+echo -e "${GREEN}Копирование исполняемого файла...${NC}"
+cp "$BUILD_DIR/$APP_NAME" "$MACOS_DIR/$APP_NAME"
+chmod +x "$MACOS_DIR/$APP_NAME"
+
+# Копируем иконку если есть
+if [ -f "$PROJECT_DIR/VPNBarApp.icns" ]; then
+    echo -e "${GREEN}Копирование иконки...${NC}"
+    cp "$PROJECT_DIR/VPNBarApp.icns" "$RESOURCES_DIR/"
+fi
+
+# Создаем entitlements если нужно
+if [ ! -f "$CONTENTS_DIR/Entitlements.plist" ]; then
+    echo -e "${GREEN}Создание Entitlements.plist...${NC}"
+    cat > "$CONTENTS_DIR/Entitlements.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.personal-information.location</key>
+    <true/>
+</dict>
+</plist>
+EOF
+fi
+
+# Создаем Info.plist
+echo -e "${GREEN}Создание Info.plist...${NC}"
+cat > "$CONTENTS_DIR/Info.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>$APP_NAME</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.borzov.VPNBar</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>VPN Bar</string>
+    <key>CFBundleDisplayName</key>
+    <string>VPN Bar</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>12.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright © 2025</string>
+    <key>CFBundleIconFile</key>
+    <string>VPNBarApp</string>
+</dict>
+</plist>
+EOF
+
+echo -e "${GREEN}✓ .app bundle создан: $APP_BUNDLE${NC}"
+echo -e "${GREEN}Можно запустить: open $APP_BUNDLE${NC}"
+
