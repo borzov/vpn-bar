@@ -48,6 +48,17 @@ if [ -f "$PROJECT_DIR/VPNBarApp.icns" ]; then
     cp "$PROJECT_DIR/VPNBarApp.icns" "$RESOURCES_DIR/"
 fi
 
+# Копируем локализованные ресурсы
+RESOURCE_BUNDLE=$(find "$PROJECT_DIR/.build" -type d -name "*VPNBarApp*.bundle" | grep release | head -1)
+if [ -n "$RESOURCE_BUNDLE" ] && [ -d "$RESOURCE_BUNDLE" ]; then
+    echo -e "${GREEN}Копирование локализованных ресурсов...${NC}"
+    cp -R "$RESOURCE_BUNDLE"/*.lproj "$RESOURCES_DIR/" 2>/dev/null || true
+    # Альтернативный способ - копируем все .lproj директории
+    if [ -z "$(ls -A "$RESOURCES_DIR"/*.lproj 2>/dev/null)" ]; then
+        find "$RESOURCE_BUNDLE" -type d -name "*.lproj" -exec cp -R {} "$RESOURCES_DIR/" \;
+    fi
+fi
+
 # Создаем entitlements если нужно
 if [ ! -f "$CONTENTS_DIR/Entitlements.plist" ]; then
     echo -e "${GREEN}Создание Entitlements.plist...${NC}"
@@ -91,9 +102,9 @@ cat > "$CONTENTS_DIR/Info.plist" <<EOF
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
+    <string>0.1.1</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>2</string>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
     <key>LSUIElement</key>

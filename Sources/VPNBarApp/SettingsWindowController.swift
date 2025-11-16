@@ -22,7 +22,7 @@ class SettingsWindowController {
             defer: false
         )
         
-        window.title = "Настройки VPN Bar"
+        window.title = NSLocalizedString("VPN Bar Settings", comment: "")
         window.center()
         window.isReleasedWhenClosed = false
         
@@ -40,7 +40,7 @@ class SettingsWindowController {
         mainStack.translatesAutoresizingMaskIntoConstraints = false
         
         // Заголовок
-        let titleLabel = NSTextField(labelWithString: "Настройки приложения")
+        let titleLabel = NSTextField(labelWithString: NSLocalizedString("Application Settings", comment: ""))
         titleLabel.font = NSFont.systemFont(ofSize: 18, weight: .medium)
         titleLabel.alignment = .center
         mainStack.addArrangedSubview(titleLabel)
@@ -80,7 +80,7 @@ class SettingsWindowController {
         sectionStack.spacing = 8
         
         // Заголовок секции
-        let sectionLabel = NSTextField(labelWithString: "Интервал обновления статуса")
+        let sectionLabel = NSTextField(labelWithString: NSLocalizedString("Status Update Interval", comment: ""))
         sectionLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         sectionStack.addArrangedSubview(sectionLabel)
         
@@ -103,7 +103,7 @@ class SettingsWindowController {
         inputStack.addArrangedSubview(textField)
         
         // Метка "секунд"
-        let secondsLabel = NSTextField(labelWithString: "секунд")
+        let secondsLabel = NSTextField(labelWithString: NSLocalizedString("seconds", comment: ""))
         secondsLabel.font = NSFont.systemFont(ofSize: 13)
         inputStack.addArrangedSubview(secondsLabel)
         
@@ -115,7 +115,7 @@ class SettingsWindowController {
         sectionStack.addArrangedSubview(inputStack)
         
         // Описание
-        let description = NSTextField(wrappingLabelWithString: "Как часто приложение будет проверять список VPN подключений. Рекомендуется: 10-15 секунд.")
+        let description = NSTextField(wrappingLabelWithString: NSLocalizedString("Status Update Interval Description", comment: ""))
         description.font = NSFont.systemFont(ofSize: 11)
         description.textColor = .secondaryLabelColor
         description.preferredMaxLayoutWidth = 480

@@ -173,7 +173,7 @@ class VPNManager: ObservableObject {
         let frameworkPath = "/System/Library/Frameworks/NetworkExtension.framework/NetworkExtension"
         guard let framework = dlopen(frameworkPath, RTLD_LAZY) else {
             let error = String(cString: dlerror())
-            print("❌ Не удалось загрузить NetworkExtension framework: \(error)")
+            print(String(format: NSLocalizedString("Failed to load NetworkExtension framework: %@", comment: ""), error))
             self.connections = []
             self.updateActiveStatus()
             return
@@ -203,7 +203,7 @@ class VPNManager: ObservableObject {
         // Дублируем логику из loadConnections, но с уже известным классом
         let sharedManagerSelector = NSSelectorFromString("sharedManager")
         guard managerType.responds(to: sharedManagerSelector) else {
-            print("❌ Ошибка: sharedManager недоступен")
+            print(NSLocalizedString("Error: sharedManager unavailable", comment: ""))
             return
         }
         
@@ -280,12 +280,12 @@ class VPNManager: ObservableObject {
     
     func connect(to connectionID: String) {
         guard connections.contains(where: { $0.id == connectionID }) else {
-            print("VPN подключение не найдено: \(connectionID)")
+            print(String(format: NSLocalizedString("VPN connection not found: %@", comment: ""), connectionID))
             return
         }
         
         guard let session = sessions[connectionID] else {
-            print("Сессия VPN не найдена для \(connectionID), создаем...")
+            print(String(format: NSLocalizedString("VPN session not found for %@, creating...", comment: ""), connectionID))
             // Пытаемся создать сессию заново
             if let uuid = UUID(uuidString: connectionID) {
                 let nsUUID = uuid as NSUUID
@@ -310,12 +310,12 @@ class VPNManager: ObservableObject {
     
     func disconnect(from connectionID: String) {
         guard connections.contains(where: { $0.id == connectionID }) else {
-            print("VPN подключение не найдено: \(connectionID)")
+            print(String(format: NSLocalizedString("VPN connection not found: %@", comment: ""), connectionID))
             return
         }
         
         guard let session = sessions[connectionID] else {
-            print("Сессия VPN не найдена для \(connectionID)")
+            print(String(format: NSLocalizedString("VPN session not found for %@", comment: ""), connectionID))
             return
         }
         
@@ -389,7 +389,7 @@ class VPNManager: ObservableObject {
         // Передаем указатель на uuidBytes
         withUnsafePointer(to: &uuidBytes) { uuidPtr in
             guard let session = ne_session_create(uuidPtr, NESessionTypeVPN) else {
-                print("Ошибка создания сессии для \(identifier)")
+                print(String(format: NSLocalizedString("Error creating session for %@", comment: ""), identifier))
                 return
             }
             

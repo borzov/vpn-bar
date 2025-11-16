@@ -1,0 +1,27 @@
+/* MenuController */
+"No VPN Connections" = "Нет VPN подключений";
+"Connected" = "подключено";
+"Connecting..." = "подключение...";
+"Disconnecting..." = "отключение...";
+"Settings" = "Настройки";
+"Quit" = "Выйти";
+
+/* StatusBarController */
+"VPN Connected" = "VPN подключен";
+"VPN Disconnected" = "VPN отключен";
+
+/* SettingsWindowController */
+"VPN Bar Settings" = "Настройки VPN Bar";
+"Application Settings" = "Настройки приложения";
+"Status Update Interval" = "Интервал обновления статуса";
+"seconds" = "секунд";
+"Status Update Interval Description" = "Как часто приложение будет проверять список VPN подключений. Рекомендуется: 10-15 секунд.";
+
+/* VPNManager */
+"Failed to load NetworkExtension framework: %@" = "Не удалось загрузить NetworkExtension framework: %@";
+"VPN connection not found: %@" = "VPN подключение не найдено: %@";
+"VPN session not found for %@, creating..." = "Сессия VPN не найдена для %@, создаем...";
+"VPN session not found for %@" = "Сессия VPN не найдена для %@";
+"Error creating session for %@" = "Ошибка создания сессии для %@";
+"Error: sharedManager unavailable" = "Ошибка: sharedManager недоступен";
+

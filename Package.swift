@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "VPNBarApp",
+    defaultLocalization: "en",
     platforms: [
         .macOS(.v12)
     ],
@@ -16,7 +17,10 @@ let package = Package(
         .executableTarget(
             name: "VPNBarApp",
             dependencies: [],
-            path: "Sources/VPNBarApp"
+            path: "Sources/VPNBarApp",
+            resources: [
+                .process("Resources")
+            ]
         )
     ]
 )

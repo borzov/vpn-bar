@@ -50,7 +50,7 @@ class StatusBarController {
             button.title = isActive ? "🔒" : "🔓"
         }
         
-        button.toolTip = isActive ? "VPN подключен" : "VPN отключен"
+        button.toolTip = isActive ? NSLocalizedString("VPN Connected", comment: "") : NSLocalizedString("VPN Disconnected", comment: "")
     }
     
     @objc private func statusBarButtonClicked(_ sender: NSStatusBarButton) {

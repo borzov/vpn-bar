@@ -34,7 +34,7 @@ class MenuController {
         
         // Динамическая часть - VPN подключения
         if vpnManager.connections.isEmpty {
-            let noConnectionsItem = NSMenuItem(title: "Нет VPN подключений", action: nil, keyEquivalent: "")
+            let noConnectionsItem = NSMenuItem(title: NSLocalizedString("No VPN Connections", comment: ""), action: nil, keyEquivalent: "")
             noConnectionsItem.isEnabled = false
             newMenu.addItem(noConnectionsItem)
         } else {
@@ -64,11 +64,11 @@ class MenuController {
                 var title = connection.name
                 switch connection.status {
                 case .connected:
-                    title += " (подключено)"
+                    title += " (" + NSLocalizedString("Connected", comment: "") + ")"
                 case .connecting:
-                    title += " (подключение...)"
+                    title += " (" + NSLocalizedString("Connecting...", comment: "") + ")"
                 case .disconnecting:
-                    title += " (отключение...)"
+                    title += " (" + NSLocalizedString("Disconnecting...", comment: "") + ")"
                 case .disconnected:
                     break
                 }
@@ -82,7 +82,7 @@ class MenuController {
         
         // Статические пункты
         let settingsItem = NSMenuItem(
-            title: "Настройки",
+            title: NSLocalizedString("Settings", comment: ""),
             action: #selector(showSettings(_:)),
             keyEquivalent: ","
         )
@@ -90,7 +90,7 @@ class MenuController {
         newMenu.addItem(settingsItem)
         
         let quitItem = NSMenuItem(
-            title: "Выйти",
+            title: NSLocalizedString("Quit", comment: ""),
             action: #selector(quitApplication(_:)),
             keyEquivalent: "q"
         )
