@@ -58,6 +58,12 @@ if [ ! -f "$CONTENTS_DIR/Entitlements.plist" ]; then
 <dict>
     <key>com.apple.security.personal-information.location</key>
     <true/>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
 </dict>
 </plist>
 EOF

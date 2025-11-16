@@ -28,23 +28,61 @@ jobs:
         
     - name: Code sign application
       run: |
-        # Ad-hoc подпись приложения (не требует Apple Developer аккаунта)
-        # Это помогает избежать карантина macOS при скачивании
+        # Ad-hoc подпись приложения с hardened runtime
         APP_PATH=$(find . -name "VPNBarApp.app" -type d | head -1)
         if [ -n "$APP_PATH" ]; then
-          echo "Подпись приложения..."
-          codesign --force --deep --sign - "$APP_PATH" || true
+          echo "Подпись приложения с hardened runtime..."
+          # Подписываем с hardened runtime и entitlements
+          codesign --force --deep --sign - \
+            --entitlements "$APP_PATH/Contents/Entitlements.plist" \
+            --options runtime \
+            "$APP_PATH" || true
           # Проверяем подпись
           codesign --verify --verbose "$APP_PATH" || true
-          # Удаляем карантин на всякий случай
-          xattr -dr com.apple.quarantine "$APP_PATH" || true
+          # Проверяем hardened runtime
+          codesign -dv --verbose=4 "$APP_PATH" 2>&1 | grep -i "runtime" || true
         fi
         
     - name: Create ZIP archive
       run: |
-        cd "$(dirname "$(find . -name "VPNBarApp.app" -type d | head -1)")"
-        zip -r VPNBarApp.zip VPNBarApp.app
+        APP_DIR=$(dirname "$(find . -name "VPNBarApp.app" -type d | head -1)")
+        cd "$APP_DIR"
+        # Используем ditto для лучшей совместимости с macOS
+        ditto -c -k --keepParent VPNBarApp.app VPNBarApp.zip
         mv VPNBarApp.zip ${{ github.workspace }}/VPNBarApp.zip
+        
+    - name: Create installation script
+      run: |
+        # Создаем скрипт установки для автоматического удаления карантина
+        cat > ${{ github.workspace }}/install.sh <<'EOF'
+        #!/bin/bash
+        set -e
+        APP_NAME="VPNBarApp.app"
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        APP_PATH="$SCRIPT_DIR/$APP_NAME"
+        INSTALL_PATH="/Applications/$APP_NAME"
+        
+        if [ ! -d "$APP_PATH" ]; then
+            echo "❌ Ошибка: $APP_NAME не найден. Распакуйте архив и запустите скрипт из той же папки."
+            exit 1
+        fi
+        
+        echo "🔓 Удаление карантина macOS..."
+        xattr -dr com.apple.quarantine "$APP_PATH" 2>/dev/null || true
+        
+        if [ -d "$INSTALL_PATH" ]; then
+            echo "🗑️  Удаление старой версии..."
+            rm -rf "$INSTALL_PATH"
+        fi
+        
+        echo "📦 Установка приложения..."
+        cp -R "$APP_PATH" "$INSTALL_PATH"
+        xattr -dr com.apple.quarantine "$INSTALL_PATH" 2>/dev/null || true
+        
+        echo "✅ VPN Bar успешно установлен!"
+        echo "   Запустите приложение из папки Программы"
+        EOF
+        chmod +x ${{ github.workspace }}/install.sh
         
     - name: Extract version from tag
       id: get_version
@@ -76,6 +114,7 @@ jobs:
         body: ${{ steps.release_notes.outputs.notes }}
         files: |
           VPNBarApp.zip
+          install.sh
         draft: false
         prerelease: false
       env:
