@@ -39,18 +39,45 @@ class StatusBarController {
     private func updateIcon(isActive: Bool) {
         guard let button = statusItem?.button else { return }
         
-        // Используем SF Symbols для иконки
-        let symbolName = isActive ? "network.badge.shield.half.filled" : "network"
-        
-        if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
-            image.isTemplate = true
-            button.image = image
+        if isActive {
+            // Активное подключение: нормальный цвет + значок со щитом
+            let symbolName = "network.badge.shield.half.filled"
+            if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
+                image.isTemplate = true
+                button.image = image
+                button.contentTintColor = nil
+            } else {
+                button.title = "🔒"
+                button.contentTintColor = nil
+            }
         } else {
-            // Fallback на текстовую иконку, если SF Symbols недоступны
-            button.title = isActive ? "🔒" : "🔓"
+            // Неактивное подключение: полупрозрачная/серая иконка
+            let symbolName = "network"
+            if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
+                image.isTemplate = true
+                // Создаем копию изображения с пониженной альфа-каналом
+                let grayImage = createGrayedImage(from: image)
+                button.image = grayImage
+                button.contentTintColor = nil
+            } else {
+                button.title = "🔓"
+                button.contentTintColor = nil
+            }
         }
         
         button.toolTip = isActive ? NSLocalizedString("VPN Connected", comment: "") : NSLocalizedString("VPN Disconnected", comment: "")
+    }
+    
+    private func createGrayedImage(from image: NSImage) -> NSImage {
+        let grayImage = NSImage(size: image.size)
+        grayImage.lockFocus()
+        
+        // Рисуем оригинальное изображение с пониженной альфа-каналом
+        image.draw(at: .zero, from: .zero, operation: .sourceOver, fraction: 0.4)
+        
+        grayImage.unlockFocus()
+        grayImage.isTemplate = true
+        return grayImage
     }
     
     @objc private func statusBarButtonClicked(_ sender: NSStatusBarButton) {
