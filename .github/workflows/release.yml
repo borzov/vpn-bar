@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v1
+      with:
+        swift-version: "5.9"
+        
+    - name: Build application
+      run: |
+        swift build -c release
+        
+    - name: Create app bundle
+      run: |
+        chmod +x Scripts/package_app.sh
+        ./Scripts/package_app.sh
+        
+    - name: Create ZIP archive
+      run: |
+        cd "$(dirname "$(find . -name "VPNBarApp.app" -type d | head -1)")"
+        zip -r VPNBarApp.zip VPNBarApp.app
+        mv VPNBarApp.zip ${{ github.workspace }}/VPNBarApp.zip
+        
+    - name: Extract version from tag
+      id: get_version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Tag version: $VERSION"
+        
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        if [ -f CHANGELOG.md ]; then
+          # Extract changelog for this version
+          VERSION=${{ steps.get_version.outputs.version }}
+          # Try to extract section from CHANGELOG.md
+          NOTES=$(awk "/^### Version ${VERSION//./\\.}/,/^### /" CHANGELOG.md | head -n -1 || echo "Release v$VERSION")
+        else
+          # Use last commit message as fallback
+          NOTES=$(git log -1 --pretty=%B)
+        fi
+        echo "notes<<EOF" >> $GITHUB_OUTPUT
+        echo "$NOTES" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: Release v${{ steps.get_version.outputs.version }}
+        body: ${{ steps.release_notes.outputs.notes }}
+        files: |
+          VPNBarApp.zip
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
