@@ -13,13 +13,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup Swift
-      uses: swift-actions/setup-swift@v1
-      with:
-        swift-version: "5.10"
-        
     - name: Build application
       run: |
+        # Используем системный Swift, который уже установлен на macOS runner
+        swift --version
         swift build -c release
         
     - name: Create app bundle
