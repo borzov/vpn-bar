@@ -9,13 +9,29 @@
 /* StatusBarController */
 "VPN Connected" = "VPN Connected";
 "VPN Disconnected" = "VPN Disconnected";
+"Connected to %@" = "Connected to %@";
+"Disconnected from %@" = "Disconnected from %@";
 
 /* SettingsWindowController */
+"Preferences" = "Preferences";
+"General" = "General";
+"Hotkeys" = "Hotkeys";
 "VPN Bar Settings" = "VPN Bar Settings";
 "Application Settings" = "Application Settings";
 "Status Update Interval" = "Status Update Interval";
 "seconds" = "seconds";
 "Status Update Interval Description" = "How often the app will check the list of VPN connections. Recommended: 10-15 seconds.";
+"Toggle VPN Connection" = "Toggle VPN Connection";
+"Record Shortcut" = "Record Shortcut";
+"Press keys..." = "Press keys...";
+"Toggle VPN Hotkey Description" = "Set a global hotkey to toggle VPN connection (same as left-click on the status bar icon).";
+"Hotkeys work globally and allow you to toggle VPN connection from anywhere in the system." = "Hotkeys work globally and allow you to toggle VPN connection from anywhere in the system.";
+"Notifications" = "Notifications";
+"Show notifications when VPN connects or disconnects" = "Show notifications when VPN connects or disconnects";
+"Show notifications description" = "Display system notifications when VPN connection status changes.";
+"Display" = "Display";
+"Show connection name in tooltip" = "Show connection name in tooltip";
+"Show connection name description" = "Display the name of the active VPN connection in the status bar icon tooltip.";
 
 /* VPNManager */
 "Failed to load NetworkExtension framework: %@" = "Failed to load NetworkExtension framework: %@";

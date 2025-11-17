@@ -9,13 +9,29 @@
 /* StatusBarController */
 "VPN Connected" = "VPN подключен";
 "VPN Disconnected" = "VPN отключен";
+"Connected to %@" = "Подключено к %@";
+"Disconnected from %@" = "Отключено от %@";
 
 /* SettingsWindowController */
+"Preferences" = "Настройки";
+"General" = "Основные";
+"Hotkeys" = "Горячие клавиши";
 "VPN Bar Settings" = "Настройки VPN Bar";
 "Application Settings" = "Настройки приложения";
 "Status Update Interval" = "Интервал обновления статуса";
 "seconds" = "секунд";
 "Status Update Interval Description" = "Как часто приложение будет проверять список VPN подключений. Рекомендуется: 10-15 секунд.";
+"Toggle VPN Connection" = "Переключение VPN подключения";
+"Record Shortcut" = "Записать комбинацию";
+"Press keys..." = "Нажмите клавиши...";
+"Toggle VPN Hotkey Description" = "Установите глобальную горячую клавишу для переключения VPN подключения (аналогично левому клику по иконке в строке меню).";
+"Hotkeys work globally and allow you to toggle VPN connection from anywhere in the system." = "Горячие клавиши работают глобально и позволяют переключать VPN подключение из любого места в системе.";
+"Notifications" = "Уведомления";
+"Show notifications when VPN connects or disconnects" = "Показывать уведомления при подключении или отключении VPN";
+"Show notifications description" = "Отображать системные уведомления при изменении статуса VPN подключения.";
+"Display" = "Отображение";
+"Show connection name in tooltip" = "Показывать имя подключения во всплывающей подсказке";
+"Show connection name description" = "Отображать имя активного VPN подключения во всплывающей подсказке иконки в строке меню.";
 
 /* VPNManager */
 "Failed to load NetworkExtension framework: %@" = "Не удалось загрузить NetworkExtension framework: %@";

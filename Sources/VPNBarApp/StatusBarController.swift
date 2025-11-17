@@ -1,14 +1,32 @@
 import AppKit
 import Combine
+import os.log
 
 class StatusBarController {
+    static var shared: StatusBarController?
+    
     private var statusItem: NSStatusItem?
     private var cancellables = Set<AnyCancellable>()
     private let vpnManager = VPNManager.shared
     
     init() {
+        StatusBarController.shared = self
         setupStatusBar()
         observeVPNStatus()
+        observeSettingsChanges()
+    }
+    
+    private func observeSettingsChanges() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(showConnectionNameDidChange),
+            name: NSNotification.Name("ShowConnectionNameDidChange"),
+            object: nil
+        )
+    }
+    
+    @objc private func showConnectionNameDidChange() {
+        updateTooltip()
     }
     
     private func setupStatusBar() {
@@ -32,6 +50,14 @@ class StatusBarController {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] isActive in
                 self?.updateIcon(isActive: isActive)
+            }
+            .store(in: &cancellables)
+        
+        // Отслеживаем изменения подключений для обновления tooltip
+        vpnManager.$connections
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.updateTooltip()
             }
             .store(in: &cancellables)
     }
@@ -65,16 +91,34 @@ class StatusBarController {
             }
         }
         
-        button.toolTip = isActive ? NSLocalizedString("VPN Connected", comment: "") : NSLocalizedString("VPN Disconnected", comment: "")
+        updateTooltip()
+    }
+    
+    private func updateTooltip() {
+        guard let button = statusItem?.button else { return }
+        
+        let isActive = vpnManager.hasActiveConnection
+        let settings = SettingsManager.shared
+        
+        if isActive {
+            if settings.showConnectionName {
+                if let activeConnection = vpnManager.connections.first(where: { $0.status.isActive }) {
+                    button.toolTip = activeConnection.name
+                } else {
+                    button.toolTip = NSLocalizedString("VPN Connected", comment: "")
+                }
+            } else {
+                button.toolTip = NSLocalizedString("VPN Connected", comment: "")
+            }
+        } else {
+            button.toolTip = NSLocalizedString("VPN Disconnected", comment: "")
+        }
     }
     
     private func createGrayedImage(from image: NSImage) -> NSImage {
         let grayImage = NSImage(size: image.size)
         grayImage.lockFocus()
-        
-        // Рисуем оригинальное изображение с пониженной альфа-каналом
         image.draw(at: .zero, from: .zero, operation: .sourceOver, fraction: 0.4)
-        
         grayImage.unlockFocus()
         grayImage.isTemplate = true
         return grayImage
@@ -84,28 +128,81 @@ class StatusBarController {
         let event = NSApp.currentEvent
         
         if event?.type == .rightMouseUp || (event?.type == .leftMouseUp && event?.modifierFlags.contains(.control) == true) {
-            // Правый клик или Ctrl+клик - открываем меню
             MenuController.shared.showMenu(for: statusItem)
         } else if event?.type == .leftMouseUp {
-            // Левый клик - toggle последнего активного или первого подключения
             toggleVPNConnection()
         }
     }
     
-    private func toggleVPNConnection() {
+    func toggleVPNConnection() {
         let connections = vpnManager.connections
+        let wasActive = vpnManager.hasActiveConnection
+        var connectionName: String?
         
-        // Ищем активное подключение
         if let activeConnection = connections.first(where: { $0.status.isActive }) {
+            connectionName = activeConnection.name
             vpnManager.toggleConnection(activeConnection.id)
         } else if let firstConnection = connections.first {
-            // Если нет активных, переключаем первое
+            connectionName = firstConnection.name
             vpnManager.toggleConnection(firstConnection.id)
+        }
+        
+        let settings = SettingsManager.shared
+        let logger = Logger(subsystem: "com.borzov.VPNBar", category: "Notifications")
+        
+        logger.info("toggleVPNConnection called, showNotifications: \(settings.showNotifications), wasActive: \(wasActive)")
+        
+        if settings.showNotifications {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self = self else {
+                    logger.error("self is nil in notification closure")
+                    return
+                }
+                let isNowActive = self.vpnManager.hasActiveConnection
+                logger.info("After delay: isNowActive: \(isNowActive), wasActive: \(wasActive)")
+                
+                if wasActive != isNowActive {
+                    logger.info("Status changed, sending notification")
+                    self.sendNotification(isNowActive: isNowActive, connectionName: connectionName, logger: logger)
+                } else {
+                    logger.info("Status did not change, skipping notification")
+                }
+            }
+        } else {
+            logger.info("Notifications disabled in settings")
         }
     }
     
+    private func sendNotification(isNowActive: Bool, connectionName: String?, logger: Logger) {
+        logger.info("Sending notification using NSUserNotification API")
+        
+        let notification = NSUserNotification()
+        
+        if isNowActive {
+            notification.title = NSLocalizedString("VPN Connected", comment: "")
+            if let name = connectionName {
+                notification.informativeText = String(format: NSLocalizedString("Connected to %@", comment: ""), name)
+            } else {
+                notification.informativeText = ""
+            }
+        } else {
+            notification.title = NSLocalizedString("VPN Disconnected", comment: "")
+            if let name = connectionName {
+                notification.informativeText = String(format: NSLocalizedString("Disconnected from %@", comment: ""), name)
+            } else {
+                notification.informativeText = ""
+            }
+        }
+        
+        notification.soundName = NSUserNotificationDefaultSoundName
+        
+        let center = NSUserNotificationCenter.default
+        center.deliver(notification)
+        
+        logger.info("Notification delivered")
+    }
+    
     func updateMenu() {
-        // Метод для обновления меню извне
         MenuController.shared.updateMenu()
     }
 }
