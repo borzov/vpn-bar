@@ -395,7 +395,9 @@ class SettingsWindowController {
             if keyCode == 53 { // Escape key
                 stopRecordingHotkey()
                 // Восстанавливаем предыдущее значение
-                updateHotkeyButtonTitle(hotkeyButton!)
+                if let button = hotkeyButton {
+                    updateHotkeyButtonTitle(button)
+                }
                 return
             }
             
@@ -430,7 +432,10 @@ class SettingsWindowController {
     
     private func stopRecordingHotkey() {
         isRecordingHotkey = false
-        updateHotkeyButtonTitle(hotkeyButton!)
+        
+        if let button = hotkeyButton {
+            updateHotkeyButtonTitle(button)
+        }
         
         // Удаляем мониторы событий
         if let monitor = globalEventMonitor {
@@ -445,7 +450,9 @@ class SettingsWindowController {
     
     @objc private func clearHotkey(_ sender: NSButton) {
         settingsManager.saveHotkey(keyCode: nil, modifiers: nil)
-        updateHotkeyButtonTitle(hotkeyButton!)
+        if let button = hotkeyButton {
+            updateHotkeyButtonTitle(button)
+        }
         HotkeyManager.shared.unregisterHotkey()
         
         // Удаляем кнопку очистки из UI
@@ -457,7 +464,9 @@ class SettingsWindowController {
         guard let keyCode = recordedKeyCode else { return }
         
         settingsManager.saveHotkey(keyCode: keyCode, modifiers: recordedModifiers)
-        updateHotkeyButtonTitle(hotkeyButton!)
+        if let button = hotkeyButton {
+            updateHotkeyButtonTitle(button)
+        }
         updateHotkeyUI()
         registerHotkey()
     }
