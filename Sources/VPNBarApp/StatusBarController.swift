@@ -9,6 +9,10 @@ class StatusBarController {
     private var cancellables = Set<AnyCancellable>()
     private let vpnManager = VPNManager.shared
     
+    // НОВОЕ: Таймер анимации
+    private var connectingAnimationTimer: Timer?
+    private var animationFrame = 0
+    
     init() {
         StatusBarController.shared = self
         setupStatusBar()
@@ -53,11 +57,21 @@ class StatusBarController {
             }
             .store(in: &cancellables)
         
-        // Отслеживаем изменения подключений для обновления tooltip
         vpnManager.$connections
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.updateTooltip()
+            .sink { [weak self] connections in
+                guard let self = self else { return }
+                // Проверяем наличие connecting/disconnecting состояний
+                let hasTransitionalState = connections.contains {
+                    $0.status == .connecting || $0.status == .disconnecting
+                }
+                if hasTransitionalState {
+                    self.startConnectingAnimation()
+                } else {
+                    self.stopConnectingAnimation()
+                    self.updateIcon(isActive: self.vpnManager.hasActiveConnection)
+                }
+                self.updateTooltip()
             }
             .store(in: &cancellables)
     }
@@ -65,8 +79,20 @@ class StatusBarController {
     private func updateIcon(isActive: Bool) {
         guard let button = statusItem?.button else { return }
         
+        // Останавливаем анимацию если она была
+        stopConnectingAnimation()
+        
+        // Проверяем, есть ли подключения в процессе
+        let isConnecting = vpnManager.connections.contains { 
+            $0.status == .connecting || $0.status == .disconnecting 
+        }
+        
+        if isConnecting {
+            startConnectingAnimation()
+            return
+        }
+        
         if isActive {
-            // Активное подключение: нормальный цвет + значок со щитом
             let symbolName = "network.badge.shield.half.filled"
             if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
                 image.isTemplate = true
@@ -77,11 +103,9 @@ class StatusBarController {
                 button.contentTintColor = nil
             }
         } else {
-            // Неактивное подключение: полупрозрачная/серая иконка
             let symbolName = "network"
             if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
                 image.isTemplate = true
-                // Создаем копию изображения с пониженной альфа-каналом
                 let grayImage = createGrayedImage(from: image)
                 button.image = grayImage
                 button.contentTintColor = nil
@@ -92,6 +116,51 @@ class StatusBarController {
         }
         
         updateTooltip()
+    }
+    
+    // НОВОЕ: Методы анимации
+    private func startConnectingAnimation() {
+        guard connectingAnimationTimer == nil else { return }
+        
+        animationFrame = 0
+        connectingAnimationTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
+            self?.animateConnectingIcon()
+        }
+        RunLoop.current.add(connectingAnimationTimer!, forMode: .common)
+        
+        // Запускаем первый кадр сразу
+        animateConnectingIcon()
+    }
+    
+    private func stopConnectingAnimation() {
+        connectingAnimationTimer?.invalidate()
+        connectingAnimationTimer = nil
+        animationFrame = 0
+    }
+    
+    private func animateConnectingIcon() {
+        guard let button = statusItem?.button else { return }
+        
+        // Чередуем иконки для создания эффекта анимации
+        let symbols = [
+            "network",
+            "network.badge.shield.half.filled"
+        ]
+        
+        let symbolName = symbols[animationFrame % symbols.count]
+        
+        if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
+            image.isTemplate = true
+            // Добавляем небольшую прозрачность для индикации процесса
+            let animatedImage = NSImage(size: image.size)
+            animatedImage.lockFocus()
+            image.draw(at: .zero, from: .zero, operation: .sourceOver, fraction: 0.7)
+            animatedImage.unlockFocus()
+            animatedImage.isTemplate = true
+            button.image = animatedImage
+        }
+        
+        animationFrame += 1
     }
     
     private func updateTooltip() {
@@ -186,6 +255,10 @@ class StatusBarController {
     
     func updateMenu() {
         MenuController.shared.updateMenu()
+    }
+    
+    deinit {
+        stopConnectingAnimation()
     }
 }
 
