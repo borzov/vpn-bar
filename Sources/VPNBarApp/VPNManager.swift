@@ -2,6 +2,7 @@ import Foundation
 import SystemConfiguration
 import Darwin
 
+@MainActor
 class VPNManager: ObservableObject {
     static let shared = VPNManager()
     
@@ -40,7 +41,12 @@ class VPNManager: ObservableObject {
     }
     
     deinit {
-        stopMonitoring()
+        // Останавливаем таймеры напрямую
+        updateTimer?.invalidate()
+        updateTimer = nil
+        statusUpdateTimer?.invalidate()
+        statusUpdateTimer = nil
+        
         // Освобождаем все сессии
         for (_, session) in sessions {
             ne_session_cancel(session)
@@ -407,12 +413,8 @@ class VPNManager: ObservableObject {
         networkExtensionFrameworkLoaded = frameworkLoaded
     }
     
-    private func getOrCreateSession(for uuid: NSUUID) {
+    private nonisolated func getOrCreateSession(for uuid: NSUUID) {
         let identifier = uuid.uuidString
-        
-        if sessions[identifier] != nil {
-            return
-        }
         
         // Создаем новую сессию как в VPNStatus
         var uuidBytes: uuid_t = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
@@ -425,26 +427,33 @@ class VPNManager: ObservableObject {
                 return
             }
             
-            self.sessions[identifier] = session
-            
-            // Настраиваем обработчик событий
-            ne_session_set_event_handler(session, self.sessionQueue) { [weak self] event, eventData in
-                // Обновляем только статус, не перезагружаем весь список
-                DispatchQueue.main.async {
-                    self?.refreshSessionStatus(for: identifier, session: session, updateConnections: true)
+            Task { @MainActor in
+                // Проверяем еще раз на main actor
+                if self.sessions[identifier] == nil {
+                    self.sessions[identifier] = session
+                    
+                    // Настраиваем обработчик событий
+                    ne_session_set_event_handler(session, self.sessionQueue) { event, eventData in
+                        // Обновляем только статус, не перезагружаем весь список
+                        Task { @MainActor in
+                            VPNManager.shared.refreshSessionStatus(for: identifier, session: session, updateConnections: true)
+                        }
+                    }
+                    
+                    // Получаем начальный статус
+                    self.refreshSessionStatus(for: identifier, session: session, updateConnections: false)
+                } else {
+                    // Сессия уже существует, освобождаем созданную
+                    ne_session_release(session)
                 }
             }
-            
-            // Получаем начальный статус
-            self.refreshSessionStatus(for: identifier, session: session, updateConnections: false)
         }
         
     }
     
     private func refreshSessionStatus(for identifier: String, session: ne_session_t, updateConnections: Bool = false) {
-        ne_session_get_status(session, sessionQueue) { [weak self] status in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
+        ne_session_get_status(session, sessionQueue) { status in
+            Task { @MainActor in
                 let scStatus = SCNetworkConnectionGetStatusFromNEStatus(status)
                 let oldStatus = self.sessionStatuses[identifier]
                 self.sessionStatuses[identifier] = scStatus

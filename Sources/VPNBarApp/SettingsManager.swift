@@ -3,6 +3,7 @@ import AppKit
 import ServiceManagement
 import os.log
 
+@MainActor
 class SettingsManager {
     static let shared = SettingsManager()
     

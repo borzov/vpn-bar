@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import os.log
 
+@MainActor
 class StatusBarController {
     static var shared: StatusBarController?
     
@@ -124,7 +125,9 @@ class StatusBarController {
         
         animationFrame = 0
         connectingAnimationTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
-            self?.animateConnectingIcon()
+            Task { @MainActor in
+                self?.animateConnectingIcon()
+            }
         }
         RunLoop.current.add(connectingAnimationTimer!, forMode: .common)
         
@@ -258,7 +261,9 @@ class StatusBarController {
     }
     
     deinit {
-        stopConnectingAnimation()
+        // Останавливаем анимацию напрямую
+        connectingAnimationTimer?.invalidate()
+        connectingAnimationTimer = nil
     }
 }
 

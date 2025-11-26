@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import Carbon
 
+@MainActor
 class SettingsWindowController {
     static let shared = SettingsWindowController()
     
@@ -673,7 +674,14 @@ class SettingsWindowController {
     
     deinit {
         NotificationCenter.default.removeObserver(self)
-        stopRecordingHotkey()
+        // Останавливаем запись напрямую
+        isRecordingHotkey = false
+        if let monitor = globalEventMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        if let monitor = localEventMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
     }
     
     @objc private func updateIntervalChanged(_ sender: NSTextField) {

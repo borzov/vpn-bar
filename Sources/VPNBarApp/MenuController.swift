@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 
+@MainActor
 class MenuController {
     static let shared = MenuController()
     

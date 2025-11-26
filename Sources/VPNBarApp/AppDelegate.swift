@@ -31,15 +31,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
     
-    @objc private func hotkeyDidChange() {
+    @objc @MainActor private func hotkeyDidChange() {
         registerHotkeyFromSettings()
     }
     
+    @MainActor
     private func registerHotkeyFromSettings() {
         let settings = SettingsManager.shared
         if let keyCode = settings.hotkeyKeyCode, let modifiers = settings.hotkeyModifiers {
             HotkeyManager.shared.registerHotkey(keyCode: keyCode, modifiers: modifiers) {
-                StatusBarController.shared?.toggleVPNConnection()
+                Task { @MainActor in
+                    StatusBarController.shared?.toggleVPNConnection()
+                }
             }
         }
     }
