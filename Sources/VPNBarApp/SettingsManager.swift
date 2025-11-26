@@ -22,7 +22,6 @@ class SettingsManager {
         }
         set {
             userDefaults.set(newValue, forKey: updateIntervalKey)
-            userDefaults.synchronize()
             NotificationCenter.default.post(name: .updateIntervalDidChange, object: nil)
         }
     }
@@ -40,7 +39,6 @@ class SettingsManager {
             } else {
                 userDefaults.removeObject(forKey: hotkeyKeyCodeKey)
             }
-            userDefaults.synchronize()
             NotificationCenter.default.post(name: .hotkeyDidChange, object: nil)
         }
     }
@@ -56,7 +54,6 @@ class SettingsManager {
             } else {
                 userDefaults.removeObject(forKey: hotkeyModifiersKey)
             }
-            userDefaults.synchronize()
             NotificationCenter.default.post(name: .hotkeyDidChange, object: nil)
         }
     }
@@ -77,7 +74,6 @@ class SettingsManager {
         }
         set {
             userDefaults.set(newValue, forKey: showNotificationsKey)
-            userDefaults.synchronize()
         }
     }
     
@@ -92,7 +88,6 @@ class SettingsManager {
         }
         set {
             userDefaults.set(newValue, forKey: showConnectionNameKey)
-            userDefaults.synchronize()
             NotificationCenter.default.post(name: .showConnectionNameDidChange, object: nil)
         }
     }
