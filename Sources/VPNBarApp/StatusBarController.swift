@@ -20,7 +20,7 @@ class StatusBarController {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(showConnectionNameDidChange),
-            name: NSNotification.Name("ShowConnectionNameDidChange"),
+            name: .showConnectionNameDidChange,
             object: nil
         )
     }
@@ -148,7 +148,7 @@ class StatusBarController {
         }
         
         let settings = SettingsManager.shared
-        let logger = Logger(subsystem: "com.borzov.VPNBar", category: "Notifications")
+        let logger = Logger(subsystem: AppConstants.bundleIdentifier, category: "Notifications")
         
         logger.info("toggleVPNConnection called, showNotifications: \(settings.showNotifications), wasActive: \(wasActive)")
         

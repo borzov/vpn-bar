@@ -5,7 +5,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let logger = Logger(subsystem: "com.borzov.VPNBar", category: "AppDelegate")
+        let logger = Logger(subsystem: AppConstants.bundleIdentifier, category: "AppDelegate")
         logger.info("Application did finish launching")
         
         // Создаем контроллер меню-бара
@@ -21,7 +21,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(hotkeyDidChange),
-            name: NSNotification.Name("HotkeyDidChange"),
+            name: .hotkeyDidChange,
             object: nil
         )
     }

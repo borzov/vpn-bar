@@ -74,14 +74,14 @@ class SettingsWindowController {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(updateIntervalDidChange),
-            name: NSNotification.Name("UpdateIntervalDidChange"),
+            name: .updateIntervalDidChange,
             object: nil
         )
         
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(hotkeyDidChange),
-            name: NSNotification.Name("HotkeyDidChange"),
+            name: .hotkeyDidChange,
             object: nil
         )
     }

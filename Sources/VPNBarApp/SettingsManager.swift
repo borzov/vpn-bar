@@ -23,7 +23,7 @@ class SettingsManager {
         set {
             userDefaults.set(newValue, forKey: updateIntervalKey)
             userDefaults.synchronize()
-            NotificationCenter.default.post(name: NSNotification.Name("UpdateIntervalDidChange"), object: nil)
+            NotificationCenter.default.post(name: .updateIntervalDidChange, object: nil)
         }
     }
     
@@ -41,7 +41,7 @@ class SettingsManager {
                 userDefaults.removeObject(forKey: hotkeyKeyCodeKey)
             }
             userDefaults.synchronize()
-            NotificationCenter.default.post(name: NSNotification.Name("HotkeyDidChange"), object: nil)
+            NotificationCenter.default.post(name: .hotkeyDidChange, object: nil)
         }
     }
     
@@ -57,7 +57,7 @@ class SettingsManager {
                 userDefaults.removeObject(forKey: hotkeyModifiersKey)
             }
             userDefaults.synchronize()
-            NotificationCenter.default.post(name: NSNotification.Name("HotkeyDidChange"), object: nil)
+            NotificationCenter.default.post(name: .hotkeyDidChange, object: nil)
         }
     }
     
@@ -93,7 +93,7 @@ class SettingsManager {
         set {
             userDefaults.set(newValue, forKey: showConnectionNameKey)
             userDefaults.synchronize()
-            NotificationCenter.default.post(name: NSNotification.Name("ShowConnectionNameDidChange"), object: nil)
+            NotificationCenter.default.post(name: .showConnectionNameDidChange, object: nil)
         }
     }
 }
