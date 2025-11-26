@@ -85,17 +85,20 @@ class StatusBarController {
     private func updateIcon(isActive: Bool) {
         guard let button = statusItem?.button else { return }
         
-        // Останавливаем анимацию если она была
-        stopConnectingAnimation()
-        
         // Проверяем, есть ли подключения в процессе
         let isConnecting = vpnManager.connections.contains { 
             $0.status == .connecting || $0.status == .disconnecting 
         }
         
         if isConnecting {
-            startConnectingAnimation()
+            // Останавливаем анимацию только если она не запущена
+            if connectingAnimationTimer == nil {
+                startConnectingAnimation()
+            }
             return
+        } else {
+            // Останавливаем анимацию если она была
+            stopConnectingAnimation()
         }
         
         if isActive {
@@ -159,13 +162,12 @@ class StatusBarController {
         
         if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
             image.isTemplate = true
-            // Добавляем небольшую прозрачность для индикации процесса
-            let animatedImage = NSImage(size: image.size)
-            animatedImage.lockFocus()
-            image.draw(at: .zero, from: .zero, operation: .sourceOver, fraction: 0.7)
-            animatedImage.unlockFocus()
-            animatedImage.isTemplate = true
-            button.image = animatedImage
+            button.image = image
+            button.contentTintColor = nil
+        } else {
+            // Fallback на эмодзи
+            button.title = animationFrame % 2 == 0 ? "🔓" : "🔒"
+            button.contentTintColor = nil
         }
         
         animationFrame += 1
@@ -233,28 +235,16 @@ class StatusBarController {
         }
         
         let settings = SettingsManager.shared
-        let logger = Logger(subsystem: AppConstants.bundleIdentifier, category: "Notifications")
-        
-        logger.info("toggleVPNConnection called, showNotifications: \(settings.showNotifications), wasActive: \(wasActive)")
         
         if settings.showNotifications {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                guard let self = self else {
-                    logger.error("self is nil in notification closure")
-                    return
-                }
+                guard let self = self else { return }
                 let isNowActive = self.vpnManager.hasActiveConnection
-                logger.info("After delay: isNowActive: \(isNowActive), wasActive: \(wasActive)")
                 
                 if wasActive != isNowActive {
-                    logger.info("Status changed, sending notification")
                     self.notifyStatusChange(isNowActive: isNowActive, connectionName: connectionName)
-                } else {
-                    logger.info("Status did not change, skipping notification")
                 }
             }
-        } else {
-            logger.info("Notifications disabled in settings")
         }
     }
     

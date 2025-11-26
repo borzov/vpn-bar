@@ -65,3 +65,6 @@
 "Click to toggle VPN, right-click for menu" = "Click to toggle VPN, right-click for menu";
 "Click to toggle connection" = "Click to toggle connection";
 
+/* Hotkeys */
+"Key %d" = "Key %d";
+

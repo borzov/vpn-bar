@@ -11,25 +11,41 @@ class NotificationManager: NSObject, ObservableObject {
     
     private override init() {
         super.init()
+        // Устанавливаем delegate сразу при инициализации
+        UNUserNotificationCenter.current().delegate = self
     }
     
     /// Запрашивает разрешение на уведомления
     /// Для menu bar приложений использует provisional authorization
     func requestAuthorization() {
         let center = UNUserNotificationCenter.current()
+        // Устанавливаем delegate ДО запроса авторизации
         center.delegate = self
         
-        // Для menu bar apps лучше использовать provisional - не показывает диалог,
-        // но уведомления будут доставляться в Notification Center тихо
-        let options: UNAuthorizationOptions = [.alert, .sound, .provisional]
-        
-        center.requestAuthorization(options: options) { [weak self] granted, error in
+        // Сначала проверяем текущий статус
+        center.getNotificationSettings { [weak self] settings in
+            guard let self = self else { return }
+            
             Task { @MainActor in
-                if let error = error {
-                    self?.logger.error("Notification authorization error: \(error.localizedDescription)")
+                // Если уже авторизовано, не запрашиваем снова
+                if settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional {
+                    self.isAuthorized = true
+                    return
                 }
-                self?.isAuthorized = granted
-                self?.logger.info("Notification authorization: \(granted)")
+                
+                // Для menu bar apps используем обычную авторизацию (provisional может не работать)
+                // Это покажет диалог при первом запуске, но уведомления будут работать надежнее
+                let options: UNAuthorizationOptions = [.alert, .sound]
+                
+                do {
+                    let granted = try await center.requestAuthorization(options: options)
+                    self.isAuthorized = granted
+                    // Обновляем статус после запроса
+                    self.checkAuthorizationStatus()
+                } catch {
+                    self.logger.error("Notification authorization error: \(error.localizedDescription)")
+                    self.isAuthorized = false
+                }
             }
         }
     }
@@ -47,48 +63,52 @@ class NotificationManager: NSObject, ObservableObject {
     
     /// Отправляет уведомление о подключении/отключении VPN
     func sendVPNNotification(isConnected: Bool, connectionName: String?) {
-        guard isAuthorized else {
-            logger.warning("Notifications not authorized, skipping")
-            return
-        }
+        // Убеждаемся, что delegate установлен
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
         
-        let content = UNMutableNotificationContent()
-        
-        if isConnected {
-            content.title = NSLocalizedString("VPN Connected", comment: "")
-            if let name = connectionName {
-                content.body = String(format: NSLocalizedString("Connected to %@", comment: ""), name)
-            }
-        } else {
-            content.title = NSLocalizedString("VPN Disconnected", comment: "")
-            if let name = connectionName {
-                content.body = String(format: NSLocalizedString("Disconnected from %@", comment: ""), name)
-            }
-        }
-        
-        // Используем default звук
-        content.sound = .default
-        
-        // Категория для возможных действий в будущем
-        content.categoryIdentifier = "VPN_STATUS"
-        
-        // Уникальный идентификатор, чтобы новое уведомление заменяло старое
-        let identifier = "vpn-status-\(connectionName ?? "default")"
-        
-        // Сохраняем title в локальную переменную для использования в замыкании
-        let notificationTitle = content.title
-        
-        let request = UNNotificationRequest(
-            identifier: identifier,
-            content: content,
-            trigger: nil // Немедленная доставка
-        )
-        
-        UNUserNotificationCenter.current().add(request) { [weak self] error in
-            if let error = error {
-                self?.logger.error("Failed to deliver notification: \(error.localizedDescription)")
+        Task {
+            let content = UNMutableNotificationContent()
+            
+            if isConnected {
+                content.title = NSLocalizedString("VPN Connected", comment: "")
+                if let name = connectionName {
+                    content.body = String(format: NSLocalizedString("Connected to %@", comment: ""), name)
+                } else {
+                    content.body = NSLocalizedString("VPN Connected", comment: "")
+                }
             } else {
-                self?.logger.info("Notification delivered: \(notificationTitle)")
+                content.title = NSLocalizedString("VPN Disconnected", comment: "")
+                if let name = connectionName {
+                    content.body = String(format: NSLocalizedString("Disconnected from %@", comment: ""), name)
+                } else {
+                    content.body = NSLocalizedString("VPN Disconnected", comment: "")
+                }
+            }
+            
+            // Используем default звук
+            content.sound = .default
+            
+            // Категория для возможных действий в будущем
+            content.categoryIdentifier = "VPN_STATUS"
+            
+            // Уникальный идентификатор, чтобы новое уведомление заменяло старое
+            let identifier = "vpn-status-\(connectionName ?? "default")"
+            
+            let request = UNNotificationRequest(
+                identifier: identifier,
+                content: content,
+                trigger: nil // Немедленная доставка
+            )
+            
+            do {
+                try await center.add(request)
+            } catch {
+                await MainActor.run {
+                    self.logger.error("Failed to deliver notification: \(error.localizedDescription)")
+                    // Fallback на старый API для совместимости
+                    self.sendLegacyNotification(isConnected: isConnected, connectionName: connectionName)
+                }
             }
         }
     }
@@ -96,6 +116,29 @@ class NotificationManager: NSObject, ObservableObject {
     /// Удаляет все доставленные уведомления приложения
     func removeAllDeliveredNotifications() {
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+    }
+    
+    /// Fallback на старый NSUserNotification API для совместимости
+    @available(macOS, deprecated: 11.0)
+    private func sendLegacyNotification(isConnected: Bool, connectionName: String?) {
+        // Используем старый API как fallback
+        let notification = NSUserNotification()
+        
+        if isConnected {
+            notification.title = NSLocalizedString("VPN Connected", comment: "")
+            if let name = connectionName {
+                notification.informativeText = String(format: NSLocalizedString("Connected to %@", comment: ""), name)
+            }
+        } else {
+            notification.title = NSLocalizedString("VPN Disconnected", comment: "")
+            if let name = connectionName {
+                notification.informativeText = String(format: NSLocalizedString("Disconnected from %@", comment: ""), name)
+            }
+        }
+        
+        notification.soundName = NSUserNotificationDefaultSoundName
+        
+        NSUserNotificationCenter.default.deliver(notification)
     }
 }
 

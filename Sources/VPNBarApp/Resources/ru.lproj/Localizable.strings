@@ -65,3 +65,6 @@
 "Click to toggle VPN, right-click for menu" = "Нажмите для переключения VPN, правый клик для меню";
 "Click to toggle connection" = "Нажмите для переключения подключения";
 
+/* Hotkeys */
+"Key %d" = "Клавиша %d";
+

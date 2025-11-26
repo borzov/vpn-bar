@@ -326,6 +326,19 @@ class VPNManager: VPNManagerProtocol {
             return
         }
         
+        // Сразу устанавливаем статус connecting для анимации
+        if let index = connections.firstIndex(where: { $0.id == connectionID }) {
+            if connections[index].status != .connecting {
+                // Создаем новый массив для триггера @Published
+                var updatedConnections = connections
+                updatedConnections[index].status = .connecting
+                // Принудительно триггерим обновление
+                objectWillChange.send()
+                connections = updatedConnections
+                updateActiveStatus()
+            }
+        }
+        
         // Используем ne_session_start() как в VPNStatus
         ne_session_start(session)
         
@@ -346,6 +359,19 @@ class VPNManager: VPNManagerProtocol {
         guard let session = sessions[connectionID] else {
             print(String(format: NSLocalizedString("VPN session not found for %@", comment: ""), connectionID))
             return
+        }
+        
+        // Сразу устанавливаем статус disconnecting для анимации
+        if let index = connections.firstIndex(where: { $0.id == connectionID }) {
+            if connections[index].status != .disconnecting {
+                // Создаем новый массив для триггера @Published
+                var updatedConnections = connections
+                updatedConnections[index].status = .disconnecting
+                // Принудительно триггерим обновление
+                objectWillChange.send()
+                connections = updatedConnections
+                updateActiveStatus()
+            }
         }
         
         // Используем ne_session_stop() как в VPNStatus
@@ -487,7 +513,12 @@ class VPNManager: VPNManagerProtocol {
         }
         
         if connections[index].status != vpnStatus {
-            connections[index].status = vpnStatus
+            // Создаем новый массив для триггера @Published
+            var updatedConnections = connections
+            updatedConnections[index].status = vpnStatus
+            // Принудительно триггерим обновление
+            objectWillChange.send()
+            connections = updatedConnections
             updateActiveStatus()
         }
     }

@@ -614,7 +614,7 @@ class SettingsWindowController {
         if let keyChar = keyCodeToString(keyCode) {
             parts.append(keyChar)
         } else {
-            parts.append("Key \(keyCode)")
+            parts.append(String(format: NSLocalizedString("Key %d", comment: ""), keyCode))
         }
         
         return parts.joined()
