@@ -29,11 +29,29 @@ class MenuController {
     
     private func buildMenu() {
         let newMenu = NSMenu()
-        // Используем системную тему
         newMenu.appearance = NSApp.effectiveAppearance
         
-        // Динамическая часть - VPN подключения
-        if vpnManager.connections.isEmpty {
+        // Показываем ошибку если есть
+        if let error = vpnManager.loadingError {
+            let errorItem = NSMenuItem(title: error, action: nil, keyEquivalent: "")
+            errorItem.isEnabled = false
+            // Добавляем иконку предупреждения
+            if let image = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil) {
+                image.isTemplate = true
+                errorItem.image = image
+            }
+            newMenu.addItem(errorItem)
+            
+            // Добавляем кнопку открытия настроек сети
+            let openNetworkPrefsItem = NSMenuItem(
+                title: NSLocalizedString("Open Network Preferences...", comment: ""),
+                action: #selector(openNetworkPreferences(_:)),
+                keyEquivalent: ""
+            )
+            openNetworkPrefsItem.target = self
+            newMenu.addItem(openNetworkPrefsItem)
+        } else if vpnManager.connections.isEmpty {
+            // Динамическая часть - VPN подключения
             let noConnectionsItem = NSMenuItem(title: NSLocalizedString("No VPN Connections", comment: ""), action: nil, keyEquivalent: "")
             noConnectionsItem.isEnabled = false
             newMenu.addItem(noConnectionsItem)
@@ -116,6 +134,12 @@ class MenuController {
     
     @objc private func quitApplication(_ sender: NSMenuItem) {
         NSApplication.shared.terminate(nil)
+    }
+    
+    @objc private func openNetworkPreferences(_ sender: NSMenuItem) {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Network-Settings.extension") {
+            NSWorkspace.shared.open(url)
+        }
     }
     
     private func observeConnections() {

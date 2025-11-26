@@ -7,6 +7,7 @@ class VPNManager: ObservableObject {
     
     @Published var connections: [VPNConnection] = []
     @Published var hasActiveConnection: Bool = false
+    @Published var loadingError: String?
     
     private var sessions: [String: ne_session_t] = [:]
     private var sessionStatuses: [String: SCNetworkConnectionStatus] = [:]
@@ -50,6 +51,9 @@ class VPNManager: ObservableObject {
     // MARK: - Public Methods
     
     func loadConnections(forceReload: Bool = false) {
+        // В начале метода:
+        loadingError = nil
+        
         // Сначала загружаем NetworkExtension framework если еще не загружен
         loadNetworkExtensionFrameworkIfNeeded()
         
@@ -144,6 +148,15 @@ class VPNManager: ObservableObject {
                 }
                 
                 self.connections = connections.sorted { $0.name < $1.name }
+                
+                // НОВОЕ: Устанавливаем сообщение об ошибке если нет подключений
+                if self.connections.isEmpty {
+                    self.loadingError = NSLocalizedString(
+                        "No VPN configurations found. Configure VPN in System Preferences → Network.",
+                        comment: ""
+                    )
+                }
+                
                 self.updateActiveStatus()
                 
                 // Обновляем статусы только если прошло достаточно времени
@@ -265,6 +278,15 @@ class VPNManager: ObservableObject {
                 }
                 
                 self.connections = connections.sorted { $0.name < $1.name }
+                
+                // НОВОЕ: Устанавливаем сообщение об ошибке если нет подключений
+                if self.connections.isEmpty {
+                    self.loadingError = NSLocalizedString(
+                        "No VPN configurations found. Configure VPN in System Preferences → Network.",
+                        comment: ""
+                    )
+                }
+                
                 self.updateActiveStatus()
                 self.refreshAllStatuses()
             }
