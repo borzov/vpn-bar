@@ -10,18 +10,28 @@ class HotkeyManager {
     private var callback: (() -> Void)?
     private var eventHandler: EventHandlerRef?
     
+    // Добавляем флаг для отслеживания состояния
+    private var isSetup = false
+    
     private init() {
         setupEventHandler()
     }
     
     private func setupEventHandler() {
+        guard !isSetup else { return }
+        
         var eventSpec = EventTypeSpec(
             eventClass: OSType(kEventClassKeyboard),
             eventKind: OSType(kEventHotKeyPressed)
         )
         
+        // Сохраняем ссылку на self в статическую переменную для безопасного доступа
+        let userData = Unmanaged.passUnretained(self).toOpaque()
+        
         let eventHandlerUPP: EventHandlerUPP = { (nextHandler, theEvent, userData) -> OSStatus in
-            guard let userData = userData else { return OSStatus(eventNotHandledErr) }
+            guard let userData = userData else { 
+                return OSStatus(eventNotHandledErr) 
+            }
             
             var hotKeyID = EventHotKeyID()
             let err = GetEventParameter(
@@ -36,9 +46,15 @@ class HotkeyManager {
             
             if err == noErr {
                 let manager = Unmanaged<HotkeyManager>.fromOpaque(userData).takeUnretainedValue()
-                if hotKeyID.id == manager.hotKeyID.id && hotKeyID.signature == manager.hotKeyID.signature {
-                    DispatchQueue.main.async {
-                        manager.callback?()
+                
+                // Проверяем что это наш hotkey
+                if hotKeyID.id == manager.hotKeyID.id && 
+                   hotKeyID.signature == manager.hotKeyID.signature {
+                    // Безопасно вызываем callback на main thread
+                    if let callback = manager.callback {
+                        DispatchQueue.main.async {
+                            callback()
+                        }
                     }
                     return noErr
                 }
@@ -48,19 +64,23 @@ class HotkeyManager {
         }
         
         var handlerRef: EventHandlerRef?
-        InstallEventHandler(
+        let status = InstallEventHandler(
             GetApplicationEventTarget(),
             eventHandlerUPP,
             1,
             &eventSpec,
-            Unmanaged.passUnretained(self).toOpaque(),
+            userData,
             &handlerRef
         )
         
-        self.eventHandler = handlerRef
+        if status == noErr {
+            self.eventHandler = handlerRef
+            self.isSetup = true
+        }
     }
     
     func registerHotkey(keyCode: UInt32, modifiers: UInt32, callback: @escaping () -> Void) {
+        // Сначала отменяем предыдущую регистрацию
         unregisterHotkey()
         
         self.callback = callback
@@ -78,6 +98,8 @@ class HotkeyManager {
         if status == noErr, let ref = hotKeyRef {
             self.hotKeyRef = ref
             self.isRegistered = true
+        } else {
+            self.callback = nil
         }
     }
     
@@ -92,9 +114,12 @@ class HotkeyManager {
     
     deinit {
         unregisterHotkey()
+        
         if let handler = eventHandler {
             RemoveEventHandler(handler)
+            eventHandler = nil
         }
+        isSetup = false
     }
 }
 
