@@ -41,3 +41,27 @@
 "Error creating session for %@" = "Error creating session for %@";
 "Error: sharedManager unavailable" = "Error: sharedManager unavailable";
 
+/* Errors */
+"No VPN configurations found. Configure VPN in System Preferences → Network." = "No VPN configurations found. Configure VPN in System Preferences → Network.";
+"Open Network Preferences..." = "Open Network Preferences...";
+
+/* Hotkey validation */
+"Invalid Hotkey" = "Invalid Hotkey";
+"OK" = "OK";
+"Hotkey must include at least one modifier key (⌘, ⌃, or ⌥)." = "Hotkey must include at least one modifier key (⌘, ⌃, or ⌥).";
+"This key combination is reserved by the system. Please choose another." = "This key combination is reserved by the system. Please choose another.";
+
+/* Settings - Startup */
+"Startup" = "Startup";
+"Launch at login" = "Launch at login";
+"Automatically start VPN Bar when you log in." = "Automatically start VPN Bar when you log in.";
+"(Requires macOS 13 or later)" = "(Requires macOS 13 or later)";
+
+/* Menu */
+"Disconnect All" = "Disconnect All";
+
+/* Accessibility */
+"VPN Status" = "VPN Status";
+"Click to toggle VPN, right-click for menu" = "Click to toggle VPN, right-click for menu";
+"Click to toggle connection" = "Click to toggle connection";
+

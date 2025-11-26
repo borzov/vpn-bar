@@ -41,3 +41,27 @@
 "Error creating session for %@" = "Ошибка создания сессии для %@";
 "Error: sharedManager unavailable" = "Ошибка: sharedManager недоступен";
 
+/* Errors */
+"No VPN configurations found. Configure VPN in System Preferences → Network." = "VPN-подключения не найдены. Настройте VPN в Системных настройках → Сеть.";
+"Open Network Preferences..." = "Открыть настройки сети...";
+
+/* Hotkey validation */
+"Invalid Hotkey" = "Некорректная комбинация";
+"OK" = "ОК";
+"Hotkey must include at least one modifier key (⌘, ⌃, or ⌥)." = "Комбинация должна содержать хотя бы одну клавишу-модификатор (⌘, ⌃ или ⌥).";
+"This key combination is reserved by the system. Please choose another." = "Эта комбинация клавиш зарезервирована системой. Выберите другую.";
+
+/* Settings - Startup */
+"Startup" = "Запуск";
+"Launch at login" = "Запускать при входе в систему";
+"Automatically start VPN Bar when you log in." = "Автоматически запускать VPN Bar при входе в систему.";
+"(Requires macOS 13 or later)" = "(Требуется macOS 13 или новее)";
+
+/* Menu */
+"Disconnect All" = "Отключить все";
+
+/* Accessibility */
+"VPN Status" = "Статус VPN";
+"Click to toggle VPN, right-click for menu" = "Нажмите для переключения VPN, правый клик для меню";
+"Click to toggle connection" = "Нажмите для переключения подключения";
+
