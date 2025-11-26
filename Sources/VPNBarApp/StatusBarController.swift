@@ -71,11 +71,19 @@ class StatusBarController {
                 let hasTransitionalState = connections.contains {
                     $0.status == .connecting || $0.status == .disconnecting
                 }
+                
                 if hasTransitionalState {
-                    self.startConnectingAnimation()
+                    // Если анимация еще не запущена, запускаем её
+                    if self.connectingAnimationTimer == nil {
+                        self.startConnectingAnimation()
+                    }
                 } else {
+                    // Останавливаем анимацию если она была
                     self.stopConnectingAnimation()
-                    self.updateIcon(isActive: self.vpnManager.hasActiveConnection)
+                    // Обновляем иконку только если анимация остановлена
+                    if self.connectingAnimationTimer == nil {
+                        self.updateIcon(isActive: self.vpnManager.hasActiveConnection)
+                    }
                 }
                 self.updateTooltip()
             }
@@ -85,20 +93,17 @@ class StatusBarController {
     private func updateIcon(isActive: Bool) {
         guard let button = statusItem?.button else { return }
         
+        // Не обновляем иконку если анимация активна
+        guard connectingAnimationTimer == nil else { return }
+        
         // Проверяем, есть ли подключения в процессе
         let isConnecting = vpnManager.connections.contains { 
             $0.status == .connecting || $0.status == .disconnecting 
         }
         
         if isConnecting {
-            // Останавливаем анимацию только если она не запущена
-            if connectingAnimationTimer == nil {
-                startConnectingAnimation()
-            }
+            startConnectingAnimation()
             return
-        } else {
-            // Останавливаем анимацию если она была
-            stopConnectingAnimation()
         }
         
         if isActive {
