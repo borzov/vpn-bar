@@ -18,10 +18,12 @@ class SettingsManager {
     var updateInterval: TimeInterval {
         get {
             let saved = userDefaults.double(forKey: updateIntervalKey)
-            return saved > 0 ? saved : 10.0 // Значение по умолчанию
+            return saved > 0 ? saved : AppConstants.defaultUpdateInterval
         }
         set {
-            userDefaults.set(newValue, forKey: updateIntervalKey)
+            // Валидация диапазона
+            let validated = max(AppConstants.minUpdateInterval, min(AppConstants.maxUpdateInterval, newValue))
+            userDefaults.set(validated, forKey: updateIntervalKey)
             NotificationCenter.default.post(name: .updateIntervalDidChange, object: nil)
         }
     }

@@ -28,7 +28,8 @@ class VPNManager: ObservableObject {
     }
     
     private var lastStatusUpdate: Date = Date()
-    private let statusUpdateInterval: TimeInterval = 3.0 // Обновляем статусы каждые 3 секунды
+    // ИЗМЕНЕНО: Увеличен интервал обновления статусов
+    private let statusUpdateInterval: TimeInterval = AppConstants.sessionStatusUpdateInterval
     
     private init() {
         // Загружаем настройки
@@ -500,16 +501,20 @@ class VPNManager: ObservableObject {
     
     private func startMonitoring() {
         stopMonitoring()
-        // Обновляем список подключений с настраиваемым интервалом (реже)
-        updateTimer = Timer.scheduledTimer(withTimeInterval: updateInterval, repeats: true) { [weak self] _ in
+        
+        // Обновляем список подключений с настраиваемым интервалом
+        // Увеличиваем минимальный интервал до 15 секунд
+        let effectiveInterval = max(AppConstants.minUpdateInterval, updateInterval)
+        
+        updateTimer = Timer.scheduledTimer(withTimeInterval: effectiveInterval, repeats: true) { [weak self] _ in
             DispatchQueue.main.async {
-                // Обновляем только список подключений, статусы обновляются отдельно
                 self?.loadConnections(forceReload: false)
             }
         }
         RunLoop.current.add(updateTimer!, forMode: .common)
         
-        // Отдельный таймер для обновления статусов (чаще, но легче)
+        // Таймер для обновления статусов - только как резервный механизм
+        // Event handlers в ne_session_set_event_handler должны обрабатывать большинство изменений
         statusUpdateTimer = Timer.scheduledTimer(withTimeInterval: statusUpdateInterval, repeats: true) { [weak self] _ in
             DispatchQueue.main.async {
                 self?.refreshAllStatuses()
