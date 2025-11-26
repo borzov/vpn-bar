@@ -416,8 +416,25 @@ class SettingsWindowController {
                 carbonModifiers |= UInt32(controlKey)
             }
             
-            // Игнорируем только модификаторы без основной клавиши
-            if keyCode == 0 {
+            // НОВОЕ: Проверка на наличие модификаторов
+            if !hasRequiredModifiers(carbonModifiers) {
+                showHotkeyValidationError(
+                    NSLocalizedString(
+                        "Hotkey must include at least one modifier key (⌘, ⌃, or ⌥).",
+                        comment: ""
+                    )
+                )
+                return
+            }
+            
+            // НОВОЕ: Проверка на системные комбинации
+            if isSystemReservedHotkey(keyCode: keyCode, modifiers: carbonModifiers) {
+                showHotkeyValidationError(
+                    NSLocalizedString(
+                        "This key combination is reserved by the system. Please choose another.",
+                        comment: ""
+                    )
+                )
                 return
             }
             
@@ -428,6 +445,55 @@ class SettingsWindowController {
             stopRecordingHotkey()
             saveHotkey()
         }
+    }
+    
+    // MARK: - Hotkey Validation
+    
+    /// Проверяет, является ли комбинация системной/зарезервированной
+    private func isSystemReservedHotkey(keyCode: UInt32, modifiers: UInt32) -> Bool {
+        // Системные комбинации macOS, которые нельзя переопределять
+        let reservedHotkeys: [(keyCode: UInt32, modifiers: UInt32)] = [
+            // Cmd+Q - Quit
+            (12, UInt32(cmdKey)),
+            // Cmd+W - Close Window
+            (13, UInt32(cmdKey)),
+            // Cmd+Tab - App Switcher
+            (48, UInt32(cmdKey)),
+            // Cmd+Space - Spotlight
+            (49, UInt32(cmdKey)),
+            // Cmd+H - Hide
+            (4, UInt32(cmdKey)),
+            // Cmd+M - Minimize
+            (46, UInt32(cmdKey)),
+            // Cmd+, - Preferences (мы используем это для настроек)
+            (43, UInt32(cmdKey)),
+            // Ctrl+Cmd+Q - Lock Screen
+            (12, UInt32(cmdKey) | UInt32(controlKey)),
+            // Cmd+Shift+Q - Log Out
+            (12, UInt32(cmdKey) | UInt32(shiftKey)),
+        ]
+        
+        return reservedHotkeys.contains { $0.keyCode == keyCode && $0.modifiers == modifiers }
+    }
+    
+    /// Проверяет, содержит ли комбинация хотя бы один модификатор
+    private func hasRequiredModifiers(_ modifiers: UInt32) -> Bool {
+        // Должен быть хотя бы Cmd, Ctrl или Option (Shift один - не считается)
+        let hasCmd = modifiers & UInt32(cmdKey) != 0
+        let hasCtrl = modifiers & UInt32(controlKey) != 0
+        let hasOption = modifiers & UInt32(optionKey) != 0
+        
+        return hasCmd || hasCtrl || hasOption
+    }
+    
+    /// Показывает предупреждение о некорректной горячей клавише
+    private func showHotkeyValidationError(_ message: String) {
+        let alert = NSAlert()
+        alert.messageText = NSLocalizedString("Invalid Hotkey", comment: "")
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: NSLocalizedString("OK", comment: ""))
+        alert.runModal()
     }
     
     private func stopRecordingHotkey() {
