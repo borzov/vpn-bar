@@ -163,7 +163,7 @@ class StatusBarController {
                 
                 if wasActive != isNowActive {
                     logger.info("Status changed, sending notification")
-                    self.sendNotification(isNowActive: isNowActive, connectionName: connectionName, logger: logger)
+                    self.notifyStatusChange(isNowActive: isNowActive, connectionName: connectionName)
                 } else {
                     logger.info("Status did not change, skipping notification")
                 }
@@ -173,33 +173,15 @@ class StatusBarController {
         }
     }
     
-    private func sendNotification(isNowActive: Bool, connectionName: String?, logger: Logger) {
-        logger.info("Sending notification using NSUserNotification API")
+    private func notifyStatusChange(isNowActive: Bool, connectionName: String?) {
+        guard SettingsManager.shared.showNotifications else { return }
         
-        let notification = NSUserNotification()
-        
-        if isNowActive {
-            notification.title = NSLocalizedString("VPN Connected", comment: "")
-            if let name = connectionName {
-                notification.informativeText = String(format: NSLocalizedString("Connected to %@", comment: ""), name)
-            } else {
-                notification.informativeText = ""
-            }
-        } else {
-            notification.title = NSLocalizedString("VPN Disconnected", comment: "")
-            if let name = connectionName {
-                notification.informativeText = String(format: NSLocalizedString("Disconnected from %@", comment: ""), name)
-            } else {
-                notification.informativeText = ""
-            }
+        Task { @MainActor in
+            NotificationManager.shared.sendVPNNotification(
+                isConnected: isNowActive,
+                connectionName: connectionName
+            )
         }
-        
-        notification.soundName = NSUserNotificationDefaultSoundName
-        
-        let center = NSUserNotificationCenter.default
-        center.deliver(notification)
-        
-        logger.info("Notification delivered")
     }
     
     func updateMenu() {

@@ -8,6 +8,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let logger = Logger(subsystem: AppConstants.bundleIdentifier, category: "AppDelegate")
         logger.info("Application did finish launching")
         
+        // Запрашиваем разрешение на уведомления
+        Task { @MainActor in
+            NotificationManager.shared.requestAuthorization()
+        }
+        
         // Создаем контроллер меню-бара
         statusBarController = StatusBarController()
         

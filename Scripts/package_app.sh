@@ -113,6 +113,8 @@ cat > "$CONTENTS_DIR/Info.plist" <<EOF
     <string>Copyright © 2025</string>
     <key>CFBundleIconFile</key>
     <string>VPNBarApp</string>
+    <key>NSUserNotificationAlertStyle</key>
+    <string>banner</string>
 </dict>
 </plist>
 EOF
