@@ -93,6 +93,22 @@ class MenuController {
                 }
                 menuItem.title = title
                 
+                // НОВОЕ: Accessibility
+                let statusDescription: String
+                switch connection.status {
+                case .connected:
+                    statusDescription = NSLocalizedString("Connected", comment: "")
+                case .connecting:
+                    statusDescription = NSLocalizedString("Connecting", comment: "")
+                case .disconnecting:
+                    statusDescription = NSLocalizedString("Disconnecting", comment: "")
+                case .disconnected:
+                    statusDescription = NSLocalizedString("Disconnected", comment: "")
+                }
+                
+                menuItem.setAccessibilityLabel("\(connection.name), \(statusDescription)")
+                menuItem.setAccessibilityHelp(NSLocalizedString("Click to toggle connection", comment: ""))
+                
                 newMenu.addItem(menuItem)
             }
         }

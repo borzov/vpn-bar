@@ -47,6 +47,11 @@ class StatusBarController {
             button.target = self
             button.action = #selector(statusBarButtonClicked(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            
+            // НОВОЕ: Accessibility
+            button.setAccessibilityLabel(NSLocalizedString("VPN Status", comment: "Accessibility label for status bar button"))
+            button.setAccessibilityHelp(NSLocalizedString("Click to toggle VPN, right-click for menu", comment: "Accessibility help"))
+            button.setAccessibilityRole(.button)
         }
     }
     
@@ -172,19 +177,27 @@ class StatusBarController {
         let isActive = vpnManager.hasActiveConnection
         let settings = SettingsManager.shared
         
+        var tooltipText: String
+        var accessibilityValue: String
+        
         if isActive {
-            if settings.showConnectionName {
-                if let activeConnection = vpnManager.connections.first(where: { $0.status.isActive }) {
-                    button.toolTip = activeConnection.name
-                } else {
-                    button.toolTip = NSLocalizedString("VPN Connected", comment: "")
-                }
+            if settings.showConnectionName,
+               let activeConnection = vpnManager.connections.first(where: { $0.status.isActive }) {
+                tooltipText = activeConnection.name
+                accessibilityValue = String(format: NSLocalizedString("Connected to %@", comment: ""), activeConnection.name)
             } else {
-                button.toolTip = NSLocalizedString("VPN Connected", comment: "")
+                tooltipText = NSLocalizedString("VPN Connected", comment: "")
+                accessibilityValue = tooltipText
             }
         } else {
-            button.toolTip = NSLocalizedString("VPN Disconnected", comment: "")
+            tooltipText = NSLocalizedString("VPN Disconnected", comment: "")
+            accessibilityValue = tooltipText
         }
+        
+        button.toolTip = tooltipText
+        
+        // НОВОЕ: Accessibility value
+        button.setAccessibilityValue(accessibilityValue)
     }
     
     private func createGrayedImage(from image: NSImage) -> NSImage {
