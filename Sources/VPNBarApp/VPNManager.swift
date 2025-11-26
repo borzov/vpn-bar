@@ -365,6 +365,15 @@ class VPNManager: ObservableObject {
         }
     }
     
+    /// Отключает все активные VPN-подключения
+    func disconnectAll() {
+        let activeConnections = connections.filter { $0.status.isActive }
+        
+        for connection in activeConnections {
+            disconnect(from: connection.id)
+        }
+    }
+    
     // MARK: - Private Methods
     
     private func loadNetworkExtensionFrameworkIfNeeded() {

@@ -96,6 +96,24 @@ class MenuController {
             }
         }
         
+        // НОВОЕ: Добавляем "Disconnect All" если есть активные подключения
+        let hasActiveConnections = vpnManager.connections.contains { $0.status.isActive }
+        if hasActiveConnections && vpnManager.connections.count > 1 {
+            newMenu.addItem(NSMenuItem.separator())
+            
+            let disconnectAllItem = NSMenuItem(
+                title: NSLocalizedString("Disconnect All", comment: ""),
+                action: #selector(disconnectAllConnections(_:)),
+                keyEquivalent: ""
+            )
+            disconnectAllItem.target = self
+            if let image = NSImage(systemSymbolName: "xmark.circle", accessibilityDescription: nil) {
+                image.isTemplate = true
+                disconnectAllItem.image = image
+            }
+            newMenu.addItem(disconnectAllItem)
+        }
+        
         newMenu.addItem(NSMenuItem.separator())
         
         // Статические пункты
@@ -134,6 +152,15 @@ class MenuController {
     
     @objc private func quitApplication(_ sender: NSMenuItem) {
         NSApplication.shared.terminate(nil)
+    }
+    
+    @objc private func disconnectAllConnections(_ sender: NSMenuItem) {
+        vpnManager.disconnectAll()
+        
+        // Обновляем меню через небольшую задержку
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.updateMenu()
+        }
     }
     
     @objc private func openNetworkPreferences(_ sender: NSMenuItem) {
