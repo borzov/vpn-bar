@@ -11,6 +11,7 @@ class SettingsWindowController {
     private var hotkeyButton: NSButton?
     private var showNotificationsCheckbox: NSButton?
     private var showConnectionNameCheckbox: NSButton?
+    private var launchAtLoginCheckbox: NSButton?
     private var isRecordingHotkey = false
     private var recordedKeyCode: UInt32?
     private var recordedModifiers: UInt32 = 0
@@ -96,6 +97,10 @@ class SettingsWindowController {
         mainStack.distribution = .fill
         mainStack.spacing = 20
         mainStack.translatesAutoresizingMaskIntoConstraints = false
+        
+        // НОВОЕ: Секция: Запуск
+        let startupSection = createStartupSection()
+        mainStack.addArrangedSubview(startupSection)
         
         // Секция: Интервал обновления
         let intervalSection = createIntervalSection()
@@ -232,6 +237,50 @@ class SettingsWindowController {
         return sectionStack
     }
     
+    private func createStartupSection() -> NSView {
+        let sectionStack = NSStackView()
+        sectionStack.orientation = .vertical
+        sectionStack.alignment = .leading
+        sectionStack.distribution = .fill
+        sectionStack.spacing = 6
+        
+        // Заголовок секции
+        let sectionLabel = NSTextField(labelWithString: NSLocalizedString("Startup", comment: ""))
+        sectionLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        sectionStack.addArrangedSubview(sectionLabel)
+        
+        // Чекбокс
+        let checkbox = NSButton(
+            checkboxWithTitle: NSLocalizedString("Launch at login", comment: ""),
+            target: self,
+            action: #selector(launchAtLoginChanged(_:))
+        )
+        checkbox.state = settingsManager.launchAtLogin ? .on : .off
+        checkbox.font = NSFont.systemFont(ofSize: 13)
+        
+        // Отключаем чекбокс если функция недоступна (macOS < 13)
+        if !settingsManager.isLaunchAtLoginAvailable {
+            checkbox.isEnabled = false
+        }
+        
+        self.launchAtLoginCheckbox = checkbox
+        sectionStack.addArrangedSubview(checkbox)
+        
+        // Описание
+        var descriptionText = NSLocalizedString("Automatically start VPN Bar when you log in.", comment: "")
+        if !settingsManager.isLaunchAtLoginAvailable {
+            descriptionText += " " + NSLocalizedString("(Requires macOS 13 or later)", comment: "")
+        }
+        
+        let description = NSTextField(wrappingLabelWithString: descriptionText)
+        description.font = NSFont.systemFont(ofSize: 11)
+        description.textColor = .secondaryLabelColor
+        description.preferredMaxLayoutWidth = 524
+        sectionStack.addArrangedSubview(description)
+        
+        return sectionStack
+    }
+    
     private func createHotkeysView() -> NSView {
         let contentView = NSView()
         contentView.translatesAutoresizingMaskIntoConstraints = false
@@ -357,6 +406,10 @@ class SettingsWindowController {
     
     @objc private func showConnectionNameChanged(_ sender: NSButton) {
         settingsManager.showConnectionName = sender.state == .on
+    }
+    
+    @objc private func launchAtLoginChanged(_ sender: NSButton) {
+        settingsManager.launchAtLogin = sender.state == .on
     }
     
     @objc private func recordHotkey(_ sender: NSButton) {
@@ -656,6 +709,7 @@ class SettingsWindowController {
         }
         showNotificationsCheckbox?.state = settingsManager.showNotifications ? .on : .off
         showConnectionNameCheckbox?.state = settingsManager.showConnectionName ? .on : .off
+        launchAtLoginCheckbox?.state = settingsManager.launchAtLogin ? .on : .off
         
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
