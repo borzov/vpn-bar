@@ -4,7 +4,7 @@ import ServiceManagement
 import os.log
 
 @MainActor
-class SettingsManager {
+class SettingsManager: SettingsManagerProtocol {
     static let shared = SettingsManager()
     
     private let userDefaults = UserDefaults.standard

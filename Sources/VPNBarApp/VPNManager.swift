@@ -3,7 +3,7 @@ import SystemConfiguration
 import Darwin
 
 @MainActor
-class VPNManager: ObservableObject {
+class VPNManager: VPNManagerProtocol {
     static let shared = VPNManager()
     
     @Published var connections: [VPNConnection] = []
