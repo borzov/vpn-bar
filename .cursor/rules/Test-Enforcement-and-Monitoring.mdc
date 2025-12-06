@@ -1,0 +1,97 @@
+---
+alwaysApply: true
+---
+# Test Enforcement & Monitoring
+
+## Auto-Check on Every Code Change
+
+BEFORE generating/modifying ANY production code, I MUST:
+
+1. **Identify affected tests:**
+   - Which test files cover this code?
+   - Which tests will break/need updates?
+   - What new tests are needed?
+
+2. **Check test coverage:**
+   - Current coverage for modified files
+   - Will changes decrease coverage?
+   - Are edge cases tested?
+
+3. **Validate test quality:**
+   - Tests exist for all public methods
+   - Error cases covered
+   - Edge cases included
+   - Async operations tested
+   - No flaky/disabled tests
+
+## Mandatory Response Format
+
+When implementing/modifying code, ALWAYS include:
+
+```
+🔍 TEST IMPACT ANALYSIS:
+- Affected tests: [list files]
+- Coverage before: X%
+- Coverage after: Y%
+- New tests needed: Z
+
+⚠️ TEST GAPS DETECTED:
+- [ ] Missing: [specific test scenarios]
+- [ ] Outdated: [tests needing updates]
+- [ ] Uncovered: [edge cases/errors]
+
+✅ TEST UPDATES:
+[provide updated/new test code]
+```
+
+## Auto-Reject Code If:
+- ❌ Coverage drops below 75%
+- ❌ New public methods untested
+- ❌ Error handling untested
+- ❌ Modified code breaks existing tests
+- ❌ No tests for user-facing features
+
+## Test Staleness Indicators
+
+Flag tests as STALE if:
+- Test hasn't changed but code changed significantly
+- Test uses deprecated APIs
+- Test has been skipped/disabled > 7 days
+- Test fails intermittently (flaky)
+- Test takes > 1s (unit test) or > 30s (integration)
+
+## Proactive Suggestions
+
+When I detect issues, I MUST:
+1. **Alert immediately:** "⚠️ Test gap detected: [specific issue]"
+2. **Suggest fix:** Provide exact test code to add
+3. **Show impact:** Coverage change, risk level
+4. **Block completion:** Don't mark done until tests added
+
+## Test Validation Checklist
+
+On every code change, verify:
+- [ ] All modified functions have tests
+- [ ] New branches/conditions covered
+- [ ] Error paths tested
+- [ ] Boundary conditions checked
+- [ ] Integration points mocked/tested
+- [ ] Performance acceptable (if critical)
+- [ ] No test code duplication
+
+## Response Template
+
+Every implementation response MUST end with:
+
+```
+📊 TEST STATUS:
+✅ Tests updated: [count]
+✅ New tests: [count]
+✅ Coverage: [X]% → [Y]%
+⚠️ Remaining gaps: [list or "none"]
+
+🧪 TESTS TO RUN:
+[specific test commands]
+```
+
+If gaps exist: "⛔ CODE NOT COMPLETE - tests required first"

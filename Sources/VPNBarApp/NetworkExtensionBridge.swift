@@ -1,15 +1,13 @@
 import Foundation
 import SystemConfiguration
 
-// Объявления приватных API из libsystem_networkextension.dylib
-
+/// Обертка для приватных C API из `libsystem_networkextension.dylib`.
 typealias ne_session_t = OpaquePointer
 typealias ne_session_status_t = Int32
 typealias ne_session_event_t = Int32
 
 let NESessionTypeVPN: Int32 = 1
 
-// Функции из libsystem_networkextension.dylib
 @_silgen_name("ne_session_create")
 func ne_session_create(_ serviceID: UnsafePointer<uuid_t>, _ sessionConfigType: Int32) -> ne_session_t?
 
@@ -25,19 +23,15 @@ func ne_session_stop(_ session: ne_session_t)
 @_silgen_name("ne_session_cancel")
 func ne_session_cancel(_ session: ne_session_t)
 
-// Callback для обработки событий
 typealias ne_session_set_event_handler_block = @convention(block) (ne_session_event_t, UnsafeMutableRawPointer?) -> Void
 
 @_silgen_name("ne_session_set_event_handler")
 func ne_session_set_event_handler(_ session: ne_session_t, _ queue: DispatchQueue, _ block: @escaping ne_session_set_event_handler_block)
 
-// Callback для получения статуса
 typealias ne_session_get_status_block = @convention(block) (ne_session_status_t) -> Void
 
 @_silgen_name("ne_session_get_status")
 func ne_session_get_status(_ session: ne_session_t, _ queue: DispatchQueue, _ block: @escaping ne_session_get_status_block)
 
-// Конвертация статуса NE в SCNetworkConnectionStatus
 @_silgen_name("SCNetworkConnectionGetStatusFromNEStatus")
 func SCNetworkConnectionGetStatusFromNEStatus(_ status: ne_session_status_t) -> SCNetworkConnectionStatus
-

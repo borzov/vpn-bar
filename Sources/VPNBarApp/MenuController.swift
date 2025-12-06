@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 
+/// Контроллер меню статус-бара.
 @MainActor
 class MenuController {
     static let shared = MenuController()
@@ -14,16 +15,24 @@ class MenuController {
         observeConnections()
     }
     
+    /// Показывает меню для указанного элемента статус-бара.
+    /// - Parameter statusItem: Элемент статус-бара, для которого строится меню.
     func showMenu(for statusItem: NSStatusItem?) {
         self.statusItem = statusItem
         buildMenu()
         
         guard let statusItem = statusItem,
-              let button = statusItem.button else { return }
+              let button = statusItem.button,
+              let window = button.window else { return }
         
-        menu?.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height), in: button)
+        let buttonFrame = button.convert(button.bounds, to: nil)
+        let pointInWindow = button.superview?.convert(buttonFrame.origin, to: nil) ?? buttonFrame.origin
+        let screenPoint = window.convertPoint(toScreen: NSPoint(x: pointInWindow.x, y: pointInWindow.y + buttonFrame.height))
+
+        menu?.popUp(positioning: nil, at: screenPoint, in: nil)
     }
     
+    /// Перестраивает меню с актуальными данными.
     func updateMenu() {
         buildMenu()
     }
@@ -32,28 +41,34 @@ class MenuController {
         let newMenu = NSMenu()
         newMenu.appearance = NSApp.effectiveAppearance
         
-        // Показываем ошибку если есть
         if let error = vpnManager.loadingError {
             let errorItem = NSMenuItem(title: error, action: nil, keyEquivalent: "")
             errorItem.isEnabled = false
-            // Добавляем иконку предупреждения
             if let image = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil) {
                 image.isTemplate = true
                 errorItem.image = image
             }
             newMenu.addItem(errorItem)
             
-            // Добавляем кнопку открытия настроек сети
             let openNetworkPrefsItem = NSMenuItem(
-                title: NSLocalizedString("Open Network Preferences...", comment: ""),
+                title: NSLocalizedString(
+                    "menu.action.openNetworkPreferences",
+                    comment: "Menu action to open macOS Network preferences"
+                ),
                 action: #selector(openNetworkPreferences(_:)),
                 keyEquivalent: ""
             )
             openNetworkPrefsItem.target = self
             newMenu.addItem(openNetworkPrefsItem)
         } else if vpnManager.connections.isEmpty {
-            // Динамическая часть - VPN подключения
-            let noConnectionsItem = NSMenuItem(title: NSLocalizedString("No VPN Connections", comment: ""), action: nil, keyEquivalent: "")
+            let noConnectionsItem = NSMenuItem(
+                title: NSLocalizedString(
+                    "menu.empty.noConnections",
+                    comment: "Shown when there are no VPN configurations"
+                ),
+                action: nil,
+                keyEquivalent: ""
+            )
             noConnectionsItem.isEnabled = false
             newMenu.addItem(noConnectionsItem)
         } else {
@@ -66,7 +81,6 @@ class MenuController {
                 menuItem.target = self
                 menuItem.representedObject = connection.id
                 
-                // Добавляем иконку статуса
                 if connection.status.isActive {
                     if let image = NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: nil) {
                         image.isTemplate = true
@@ -79,47 +93,52 @@ class MenuController {
                     }
                 }
                 
-                // Обновляем название в зависимости от статуса
                 var title = connection.name
                 switch connection.status {
                 case .connected:
-                    title += " (" + NSLocalizedString("Connected", comment: "") + ")"
+                    title += " (" + NSLocalizedString("menu.status.connected", comment: "Status label: connected") + ")"
                 case .connecting:
-                    title += " (" + NSLocalizedString("Connecting...", comment: "") + ")"
+                    title += " (" + NSLocalizedString("menu.status.connecting", comment: "Status label: connecting") + ")"
                 case .disconnecting:
-                    title += " (" + NSLocalizedString("Disconnecting...", comment: "") + ")"
+                    title += " (" + NSLocalizedString("menu.status.disconnecting", comment: "Status label: disconnecting") + ")"
                 case .disconnected:
                     break
                 }
                 menuItem.title = title
                 
-                // НОВОЕ: Accessibility
                 let statusDescription: String
                 switch connection.status {
                 case .connected:
-                    statusDescription = NSLocalizedString("Connected", comment: "")
+                    statusDescription = NSLocalizedString("menu.status.connected", comment: "Status label: connected")
                 case .connecting:
-                    statusDescription = NSLocalizedString("Connecting", comment: "")
+                    statusDescription = NSLocalizedString("menu.status.connecting", comment: "Status label: connecting")
                 case .disconnecting:
-                    statusDescription = NSLocalizedString("Disconnecting", comment: "")
+                    statusDescription = NSLocalizedString("menu.status.disconnecting", comment: "Status label: disconnecting")
                 case .disconnected:
-                    statusDescription = NSLocalizedString("Disconnected", comment: "")
+                    statusDescription = NSLocalizedString("menu.status.disconnected", comment: "Status label: disconnected")
                 }
                 
                 menuItem.setAccessibilityLabel("\(connection.name), \(statusDescription)")
-                menuItem.setAccessibilityHelp(NSLocalizedString("Click to toggle connection", comment: ""))
+                menuItem.setAccessibilityHelp(
+                    NSLocalizedString(
+                        "menu.accessibility.toggleConnection",
+                        comment: "Accessibility help for toggling a VPN connection from menu"
+                    )
+                )
                 
                 newMenu.addItem(menuItem)
             }
         }
         
-        // НОВОЕ: Добавляем "Disconnect All" если есть активные подключения
         let hasActiveConnections = vpnManager.connections.contains { $0.status.isActive }
         if hasActiveConnections && vpnManager.connections.count > 1 {
             newMenu.addItem(NSMenuItem.separator())
             
             let disconnectAllItem = NSMenuItem(
-                title: NSLocalizedString("Disconnect All", comment: ""),
+                title: NSLocalizedString(
+                    "menu.action.disconnectAll",
+                    comment: "Menu action to disconnect all VPN connections"
+                ),
                 action: #selector(disconnectAllConnections(_:)),
                 keyEquivalent: ""
             )
@@ -133,9 +152,8 @@ class MenuController {
         
         newMenu.addItem(NSMenuItem.separator())
         
-        // Статические пункты
         let settingsItem = NSMenuItem(
-            title: NSLocalizedString("Settings", comment: ""),
+            title: NSLocalizedString("menu.action.settings", comment: "Menu item to open settings"),
             action: #selector(showSettings(_:)),
             keyEquivalent: ","
         )
@@ -143,7 +161,7 @@ class MenuController {
         newMenu.addItem(settingsItem)
         
         let quitItem = NSMenuItem(
-            title: NSLocalizedString("Quit", comment: ""),
+            title: NSLocalizedString("menu.action.quit", comment: "Menu item to quit the app"),
             action: #selector(quitApplication(_:)),
             keyEquivalent: "q"
         )

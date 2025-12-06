@@ -21,6 +21,16 @@ let package = Package(
             resources: [
                 .process("Resources")
             ]
+        ),
+        .testTarget(
+            name: "VPNBarAppTests",
+            dependencies: ["VPNBarApp"],
+            path: "Tests/VPNBarAppTests"
+        ),
+        .testTarget(
+            name: "VPNBarAppIntegrationTests",
+            dependencies: ["VPNBarApp"],
+            path: "Tests/VPNBarAppIntegrationTests"
         )
     ]
 )

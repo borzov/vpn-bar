@@ -1,0 +1,70 @@
+// MARK: - Common
+"common.button.ok" = "确定";
+"common.unit.seconds" = "秒";
+
+// MARK: - Menu
+"menu.empty.noConnections" = "暂无 VPN 连接";
+"menu.action.openNetworkPreferences" = "打开网络偏好设置…";
+"menu.action.settings" = "设置";
+"menu.action.quit" = "退出";
+"menu.action.disconnectAll" = "断开所有连接";
+"menu.status.connected" = "已连接";
+"menu.status.connecting" = "正在连接…";
+"menu.status.disconnecting" = "正在断开…";
+"menu.status.disconnected" = "已断开";
+"menu.accessibility.toggleConnection" = "点击切换连接";
+
+// MARK: - Status
+"status.tooltip.connecting" = "VPN 正在连接…";
+"status.tooltip.connected" = "VPN 已连接";
+"status.tooltip.disconnected" = "VPN 已断开";
+"status.tooltip.connectedTo" = "已连接到 %@";
+"status.accessibility.label" = "VPN 状态";
+"status.accessibility.help" = "点击切换 VPN，右键打开菜单";
+
+// MARK: - Notifications
+"notifications.title.connected" = "VPN 已连接";
+"notifications.title.disconnected" = "VPN 已断开";
+"notifications.body.connected" = "VPN 已连接";
+"notifications.body.disconnected" = "VPN 已断开";
+"notifications.body.connectedTo" = "已连接到 %@";
+"notifications.body.disconnectedFrom" = "已从 %@ 断开";
+
+// MARK: - Settings
+"settings.title.preferences" = "偏好设置";
+"settings.tab.general" = "常规";
+"settings.tab.hotkeys" = "快捷键";
+"settings.tab.about" = "关于";
+"settings.status.title" = "状态更新";
+"settings.status.description" = "VPN 状态刷新频率。";
+"settings.status.seconds" = "秒";
+"settings.notifications.title" = "通知";
+"settings.notifications.toggle" = "VPN 连接或断开时显示通知";
+"settings.notifications.description" = "在连接/断开时显示系统通知。";
+"settings.display.title" = "显示";
+"settings.display.showName" = "在提示中显示连接名称";
+"settings.display.description" = "在状态提示中显示 VPN 名称。";
+"settings.startup.title" = "启动";
+"settings.startup.launchAtLogin" = "登录时启动";
+"settings.startup.description" = "登录时启动 VPN Bar。";
+"settings.startup.requires13" = "（需要 macOS 13 或更高版本）";
+"settings.hotkey.title" = "快捷键";
+"settings.hotkey.record" = "录制快捷键";
+"settings.hotkey.pressKeys" = "按下组合键…";
+"settings.hotkey.description" = "用于切换 VPN 的全局快捷键。";
+"settings.hotkey.validation.missingModifier" = "快捷键需至少包含一个修饰键（⌘、⌃ 或 ⌥）。";
+"settings.hotkey.validation.reserved" = "该组合被系统保留，请选择其他组合。";
+"settings.hotkey.keyPlaceholder" = "按键 %d";
+"settings.about.version" = "版本 %@";
+"settings.about.author" = "作者：Maksim Borzov";
+"settings.about.description" = "一款菜单栏工具，可快速查看状态、连接和管理 macOS 的 VPN 配置，并支持全局快捷键切换。";
+"settings.about.repoButton" = "打开仓库";
+
+// MARK: - Errors
+"error.vpn.noConfigurations" = "未找到 VPN 配置。请在系统设置 → 网络中配置。";
+"error.vpn.loadFrameworkFailed" = "加载 NetworkExtension 框架失败：%@";
+"error.vpn.sharedManagerUnavailable" = "错误：sharedManager 不可用";
+"error.vpn.connectionNotFound" = "未找到 VPN 连接：%@";
+"error.vpn.sessionNotFoundCreating" = "未找到 %@ 的 VPN 会话，正在创建…";
+"error.vpn.sessionNotFound" = "未找到 %@ 的 VPN 会话";
+"error.vpn.sessionCreateFailed" = "创建 %@ 会话时出错";

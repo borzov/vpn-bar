@@ -1,0 +1,29 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Select Xcode
+      run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+    
+    - name: Run Tests
+      run: |
+        swift test --enable-code-coverage
+        
+    - name: Upload Coverage
+      if: always()
+      uses: codecov/codecov-action@v3
+      with:
+        files: .build/debug/codecov/*.json
+        fail_ci_if_error: false
+

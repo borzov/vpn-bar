@@ -1,6 +1,7 @@
 import AppKit
 import os.log
 
+/// Делегат приложения, отвечающий за инициализацию и управление жизненным циклом.
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
     
@@ -8,21 +9,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let logger = Logger(subsystem: AppConstants.bundleIdentifier, category: "AppDelegate")
         logger.info("Application did finish launching")
         
-        // Запрашиваем разрешение на уведомления
         Task { @MainActor in
             NotificationManager.shared.requestAuthorization()
         }
         
-        // Создаем контроллер меню-бара
         statusBarController = StatusBarController()
-        
-        // Загружаем VPN подключения
         VPNManager.shared.loadConnections()
-        
-        // Регистрируем горячие клавиши из настроек
         registerHotkeyFromSettings()
         
-        // Подписываемся на изменения горячих клавиш
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(hotkeyDidChange),
@@ -38,11 +32,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     private func registerHotkeyFromSettings() {
         let settings = SettingsManager.shared
-        if let keyCode = settings.hotkeyKeyCode, let modifiers = settings.hotkeyModifiers {
-            HotkeyManager.shared.registerHotkey(keyCode: keyCode, modifiers: modifiers) {
-                Task { @MainActor in
-                    StatusBarController.shared?.toggleVPNConnection()
-                }
+        guard let keyCode = settings.hotkeyKeyCode, let modifiers = settings.hotkeyModifiers else { return }
+        
+        HotkeyManager.shared.registerHotkey(keyCode: keyCode, modifiers: modifiers) {
+            Task { @MainActor in
+                StatusBarController.shared?.toggleVPNConnection()
             }
         }
     }

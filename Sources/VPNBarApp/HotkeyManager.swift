@@ -1,6 +1,7 @@
 import AppKit
 import Carbon
 
+/// Управляет регистрацией и обработкой глобальных горячих клавиш.
 class HotkeyManager {
     static let shared = HotkeyManager()
     
@@ -10,7 +11,6 @@ class HotkeyManager {
     private var callback: (() -> Void)?
     private var eventHandler: EventHandlerRef?
     
-    // Добавляем флаг для отслеживания состояния
     private var isSetup = false
     
     private init() {
@@ -25,7 +25,6 @@ class HotkeyManager {
             eventKind: OSType(kEventHotKeyPressed)
         )
         
-        // Сохраняем ссылку на self в статическую переменную для безопасного доступа
         let userData = Unmanaged.passUnretained(self).toOpaque()
         
         let eventHandlerUPP: EventHandlerUPP = { (nextHandler, theEvent, userData) -> OSStatus in
@@ -47,10 +46,8 @@ class HotkeyManager {
             if err == noErr {
                 let manager = Unmanaged<HotkeyManager>.fromOpaque(userData).takeUnretainedValue()
                 
-                // Проверяем что это наш hotkey
                 if hotKeyID.id == manager.hotKeyID.id && 
                    hotKeyID.signature == manager.hotKeyID.signature {
-                    // Безопасно вызываем callback на main thread
                     if let callback = manager.callback {
                         DispatchQueue.main.async {
                             callback()
@@ -79,8 +76,12 @@ class HotkeyManager {
         }
     }
     
+    /// Регистрирует глобальную горячую клавишу.
+    /// - Parameters:
+    ///   - keyCode: Код клавиши.
+    ///   - modifiers: Модификаторы Carbon.
+    ///   - callback: Обработчик нажатия.
     func registerHotkey(keyCode: UInt32, modifiers: UInt32, callback: @escaping () -> Void) {
-        // Сначала отменяем предыдущую регистрацию
         unregisterHotkey()
         
         self.callback = callback
@@ -103,6 +104,7 @@ class HotkeyManager {
         }
     }
     
+    /// Отменяет регистрацию горячей клавиши и очищает callback.
     func unregisterHotkey() {
         if let ref = hotKeyRef, isRegistered {
             UnregisterEventHotKey(ref)
