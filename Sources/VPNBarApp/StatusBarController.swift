@@ -2,36 +2,28 @@ import AppKit
 import Combine
 import os.log
 
+/// Управляет элементом статус-бара и его визуальным состоянием.
 @MainActor
 class StatusBarController {
     static var shared: StatusBarController?
     
     private var statusItem: NSStatusItem?
+    private let viewModel: StatusItemViewModel
+    private var lastContent: StatusItemViewModel.ImageContent?
     private var cancellables = Set<AnyCancellable>()
     private let vpnManager = VPNManager.shared
     
-    // НОВОЕ: Таймер анимации
     private var connectingAnimationTimer: Timer?
     private var animationFrame = 0
     
     init() {
+        viewModel = StatusItemViewModel(
+            vpnManager: VPNManager.shared,
+            settings: SettingsManager.shared
+        )
         StatusBarController.shared = self
         setupStatusBar()
-        observeVPNStatus()
-        observeSettingsChanges()
-    }
-    
-    private func observeSettingsChanges() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(showConnectionNameDidChange),
-            name: .showConnectionNameDidChange,
-            object: nil
-        )
-    }
-    
-    @objc private func showConnectionNameDidChange() {
-        updateTooltip()
+        bindViewModel()
     }
     
     private func setupStatusBar() {
@@ -39,100 +31,48 @@ class StatusBarController {
         
         guard let statusItem = statusItem else { return }
         
-        // Устанавливаем начальную иконку
-        updateIcon(isActive: vpnManager.hasActiveConnection)
-        
-        // Обработчик клика
         if let button = statusItem.button {
             button.target = self
             button.action = #selector(statusBarButtonClicked(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             
-            // НОВОЕ: Accessibility
-            button.setAccessibilityLabel(NSLocalizedString("VPN Status", comment: "Accessibility label for status bar button"))
-            button.setAccessibilityHelp(NSLocalizedString("Click to toggle VPN, right-click for menu", comment: "Accessibility help"))
+            button.setAccessibilityLabel(
+                NSLocalizedString(
+                    "status.accessibility.label",
+                    comment: "Accessibility label for the status bar button"
+                )
+            )
+            button.setAccessibilityHelp(
+                NSLocalizedString(
+                    "status.accessibility.help",
+                    comment: "Accessibility help text for the status bar button"
+                )
+            )
             button.setAccessibilityRole(.button)
         }
     }
     
-    private func observeVPNStatus() {
-        vpnManager.$hasActiveConnection
+    private func bindViewModel() {
+        viewModel.$state
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] isActive in
-                self?.updateIcon(isActive: isActive)
-            }
-            .store(in: &cancellables)
-        
-        vpnManager.$connections
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] connections in
-                guard let self = self else { return }
-                // Проверяем наличие connecting/disconnecting состояний
-                let hasTransitionalState = connections.contains {
-                    $0.status == .connecting || $0.status == .disconnecting
-                }
-                
-                if hasTransitionalState {
-                    // Если анимация еще не запущена, запускаем её
-                    if self.connectingAnimationTimer == nil {
-                        self.startConnectingAnimation()
-                    }
-                } else {
-                    // Останавливаем анимацию если она была
+            .sink { [weak self] state in
+                guard let self else { return }
+                switch state {
+                case .connecting(let content):
+                    self.lastContent = content
+                    self.applyTooltip(from: content)
+                    self.startConnectingAnimation()
+                case .connected(let content):
                     self.stopConnectingAnimation()
-                    // Обновляем иконку только если анимация остановлена
-                    if self.connectingAnimationTimer == nil {
-                        self.updateIcon(isActive: self.vpnManager.hasActiveConnection)
-                    }
+                    self.applyContent(content)
+                case .disconnected(let content):
+                    self.stopConnectingAnimation()
+                    self.applyContent(content)
                 }
-                self.updateTooltip()
             }
             .store(in: &cancellables)
     }
     
-    private func updateIcon(isActive: Bool) {
-        guard let button = statusItem?.button else { return }
-        
-        // Не обновляем иконку если анимация активна
-        guard connectingAnimationTimer == nil else { return }
-        
-        // Проверяем, есть ли подключения в процессе
-        let isConnecting = vpnManager.connections.contains { 
-            $0.status == .connecting || $0.status == .disconnecting 
-        }
-        
-        if isConnecting {
-            startConnectingAnimation()
-            return
-        }
-        
-        if isActive {
-            let symbolName = "network.badge.shield.half.filled"
-            if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
-                image.isTemplate = true
-                button.image = image
-                button.contentTintColor = nil
-            } else {
-                button.title = "🔒"
-                button.contentTintColor = nil
-            }
-        } else {
-            let symbolName = "network"
-            if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
-                image.isTemplate = true
-                let grayImage = createGrayedImage(from: image)
-                button.image = grayImage
-                button.contentTintColor = nil
-            } else {
-                button.title = "🔓"
-                button.contentTintColor = nil
-            }
-        }
-        
-        updateTooltip()
-    }
-    
-    // НОВОЕ: Методы анимации
     private func startConnectingAnimation() {
         guard connectingAnimationTimer == nil else { return }
         
@@ -144,7 +84,6 @@ class StatusBarController {
         }
         RunLoop.current.add(connectingAnimationTimer!, forMode: .common)
         
-        // Запускаем первый кадр сразу
         animateConnectingIcon()
     }
     
@@ -152,12 +91,14 @@ class StatusBarController {
         connectingAnimationTimer?.invalidate()
         connectingAnimationTimer = nil
         animationFrame = 0
+        if let content = lastContent {
+            applyContent(content)
+        }
     }
     
     private func animateConnectingIcon() {
         guard let button = statusItem?.button else { return }
         
-        // Чередуем иконки для создания эффекта анимации
         let symbols = [
             "network",
             "network.badge.shield.half.filled"
@@ -178,35 +119,26 @@ class StatusBarController {
         animationFrame += 1
     }
     
-    private func updateTooltip() {
+    private func applyContent(_ content: StatusItemViewModel.ImageContent) {
         guard let button = statusItem?.button else { return }
-        
-        let isActive = vpnManager.hasActiveConnection
-        let settings = SettingsManager.shared
-        
-        var tooltipText: String
-        var accessibilityValue: String
-        
-        if isActive {
-            if settings.showConnectionName,
-               let activeConnection = vpnManager.connections.first(where: { $0.status.isActive }) {
-                tooltipText = activeConnection.name
-                accessibilityValue = String(format: NSLocalizedString("Connected to %@", comment: ""), activeConnection.name)
-            } else {
-                tooltipText = NSLocalizedString("VPN Connected", comment: "")
-                accessibilityValue = tooltipText
-            }
-        } else {
-            tooltipText = NSLocalizedString("VPN Disconnected", comment: "")
-            accessibilityValue = tooltipText
+        lastContent = content
+
+        if let image = content.image {
+            button.image = image
+            button.title = ""
+            button.attributedTitle = NSAttributedString(string: "")
+            button.contentTintColor = nil
         }
-        
-        button.toolTip = tooltipText
-        
-        // НОВОЕ: Accessibility value
-        button.setAccessibilityValue(accessibilityValue)
+
+        applyTooltip(from: content)
     }
-    
+
+    private func applyTooltip(from content: StatusItemViewModel.ImageContent) {
+        guard let button = statusItem?.button else { return }
+        button.toolTip = content.toolTip
+        button.setAccessibilityValue(content.accessibilityValue)
+    }
+
     private func createGrayedImage(from image: NSImage) -> NSImage {
         let grayImage = NSImage(size: image.size)
         grayImage.lockFocus()
@@ -226,6 +158,7 @@ class StatusBarController {
         }
     }
     
+    /// Переключает текущее VPN-подключение и при необходимости отправляет уведомление.
     func toggleVPNConnection() {
         let connections = vpnManager.connections
         let wasActive = vpnManager.hasActiveConnection
@@ -253,6 +186,7 @@ class StatusBarController {
         }
     }
     
+    /// Отправляет системное уведомление об изменении статуса.
     private func notifyStatusChange(isNowActive: Bool, connectionName: String?) {
         guard SettingsManager.shared.showNotifications else { return }
         
@@ -269,9 +203,9 @@ class StatusBarController {
     }
     
     deinit {
-        // Останавливаем анимацию напрямую
         connectingAnimationTimer?.invalidate()
         connectingAnimationTimer = nil
     }
+
 }
 

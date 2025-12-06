@@ -1,70 +1,71 @@
-/* MenuController */
-"No VPN Connections" = "No VPN Connections";
-"Connected" = "connected";
-"Connecting..." = "connecting...";
-"Disconnecting..." = "disconnecting...";
-"Settings" = "Settings";
-"Quit" = "Quit";
+// MARK: - Common
+"common.button.ok" = "OK";
+"common.unit.seconds" = "seconds";
 
-/* StatusBarController */
-"VPN Connected" = "VPN Connected";
-"VPN Disconnected" = "VPN Disconnected";
-"Connected to %@" = "Connected to %@";
-"Disconnected from %@" = "Disconnected from %@";
+// MARK: - Menu
+"menu.empty.noConnections" = "No VPN Connections";
+"menu.action.openNetworkPreferences" = "Open Network Preferences...";
+"menu.action.settings" = "Settings";
+"menu.action.quit" = "Quit";
+"menu.action.disconnectAll" = "Disconnect All";
+"menu.status.connected" = "Connected";
+"menu.status.connecting" = "Connecting...";
+"menu.status.disconnecting" = "Disconnecting...";
+"menu.status.disconnected" = "Disconnected";
+"menu.accessibility.toggleConnection" = "Click to toggle connection";
 
-/* SettingsWindowController */
-"Preferences" = "Preferences";
-"General" = "General";
-"Hotkeys" = "Hotkeys";
-"VPN Bar Settings" = "VPN Bar Settings";
-"Application Settings" = "Application Settings";
-"Status Update Interval" = "Status Update Interval";
-"seconds" = "seconds";
-"Status Update Interval Description" = "How often the app will check the list of VPN connections. Recommended: 10-15 seconds.";
-"Toggle VPN Connection" = "Toggle VPN Connection";
-"Record Shortcut" = "Record Shortcut";
-"Press keys..." = "Press keys...";
-"Toggle VPN Hotkey Description" = "Set a global hotkey to toggle VPN connection (same as left-click on the status bar icon).";
-"Hotkeys work globally and allow you to toggle VPN connection from anywhere in the system." = "Hotkeys work globally and allow you to toggle VPN connection from anywhere in the system.";
-"Notifications" = "Notifications";
-"Show notifications when VPN connects or disconnects" = "Show notifications when VPN connects or disconnects";
-"Show notifications description" = "Display system notifications when VPN connection status changes.";
-"Display" = "Display";
-"Show connection name in tooltip" = "Show connection name in tooltip";
-"Show connection name description" = "Display the name of the active VPN connection in the status bar icon tooltip.";
+// MARK: - Status
+"status.tooltip.connecting" = "VPN Connecting…";
+"status.tooltip.connected" = "VPN Connected";
+"status.tooltip.disconnected" = "VPN Disconnected";
+"status.tooltip.connectedTo" = "Connected to %@";
+"status.accessibility.label" = "VPN Status";
+"status.accessibility.help" = "Click to toggle VPN, right-click for menu";
 
-/* VPNManager */
-"Failed to load NetworkExtension framework: %@" = "Failed to load NetworkExtension framework: %@";
-"VPN connection not found: %@" = "VPN connection not found: %@";
-"VPN session not found for %@, creating..." = "VPN session not found for %@, creating...";
-"VPN session not found for %@" = "VPN session not found for %@";
-"Error creating session for %@" = "Error creating session for %@";
-"Error: sharedManager unavailable" = "Error: sharedManager unavailable";
+// MARK: - Notifications
+"notifications.title.connected" = "VPN Connected";
+"notifications.title.disconnected" = "VPN Disconnected";
+"notifications.body.connected" = "VPN Connected";
+"notifications.body.disconnected" = "VPN Disconnected";
+"notifications.body.connectedTo" = "Connected to %@";
+"notifications.body.disconnectedFrom" = "Disconnected from %@";
 
-/* Errors */
-"No VPN configurations found. Configure VPN in System Preferences → Network." = "No VPN configurations found. Configure VPN in System Preferences → Network.";
-"Open Network Preferences..." = "Open Network Preferences...";
+// MARK: - Settings
+"settings.title.preferences" = "Preferences";
+"settings.tab.general" = "General";
+"settings.tab.hotkeys" = "Hotkeys";
+"settings.tab.about" = "About";
+"settings.status.title" = "Status Update";
+"settings.status.description" = "How often to refresh VPN statuses.";
+"settings.status.seconds" = "seconds";
+"settings.notifications.title" = "Notifications";
+"settings.notifications.toggle" = "Show notifications when VPN connects or disconnects";
+"settings.notifications.description" = "Display system notifications on connect/disconnect.";
+"settings.display.title" = "Display";
+"settings.display.showName" = "Show connection name in tooltip";
+"settings.display.description" = "Show the VPN name in the status tooltip.";
+"settings.startup.title" = "Startup";
+"settings.startup.launchAtLogin" = "Launch at login";
+"settings.startup.description" = "Start VPN Bar at login.";
+"settings.startup.requires13" = "(Requires macOS 13 or later)";
+"settings.hotkey.title" = "Hotkey";
+"settings.hotkey.record" = "Record Shortcut";
+"settings.hotkey.pressKeys" = "Press keys...";
+"settings.hotkey.description" = "Global shortcut to toggle VPN.";
+"settings.hotkey.validation.missingModifier" = "Hotkey must include at least one modifier key (⌘, ⌃, or ⌥).";
+"settings.hotkey.validation.reserved" = "This key combination is reserved by the system. Please choose another.";
+"settings.hotkey.keyPlaceholder" = "Key %d";
+"settings.about.version" = "Version %@";
+"settings.about.author" = "Author: Maksim Borzov";
+"settings.about.description" = "A menu bar utility to quickly view, connect, and manage your macOS VPN configurations. Keeps status at a glance and toggles with a global hotkey.";
+"settings.about.repoButton" = "Open repository";
 
-/* Hotkey validation */
-"Invalid Hotkey" = "Invalid Hotkey";
-"OK" = "OK";
-"Hotkey must include at least one modifier key (⌘, ⌃, or ⌥)." = "Hotkey must include at least one modifier key (⌘, ⌃, or ⌥).";
-"This key combination is reserved by the system. Please choose another." = "This key combination is reserved by the system. Please choose another.";
-
-/* Settings - Startup */
-"Startup" = "Startup";
-"Launch at login" = "Launch at login";
-"Automatically start VPN Bar when you log in." = "Automatically start VPN Bar when you log in.";
-"(Requires macOS 13 or later)" = "(Requires macOS 13 or later)";
-
-/* Menu */
-"Disconnect All" = "Disconnect All";
-
-/* Accessibility */
-"VPN Status" = "VPN Status";
-"Click to toggle VPN, right-click for menu" = "Click to toggle VPN, right-click for menu";
-"Click to toggle connection" = "Click to toggle connection";
-
-/* Hotkeys */
-"Key %d" = "Key %d";
+// MARK: - Errors
+"error.vpn.noConfigurations" = "No VPN configurations found. Configure VPN in System Preferences → Network.";
+"error.vpn.loadFrameworkFailed" = "Failed to load NetworkExtension framework: %@";
+"error.vpn.sharedManagerUnavailable" = "Error: sharedManager unavailable";
+"error.vpn.connectionNotFound" = "VPN connection not found: %@";
+"error.vpn.sessionNotFoundCreating" = "VPN session not found for %@, creating...";
+"error.vpn.sessionNotFound" = "VPN session not found for %@";
+"error.vpn.sessionCreateFailed" = "Error creating session for %@";
 

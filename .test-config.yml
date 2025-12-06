@@ -1,0 +1,7 @@
+test_settings:
+  unit_tests: true
+  integration_tests: true
+  min_coverage: 75
+  fail_on_warning: false
+  parallel_testing: true
+

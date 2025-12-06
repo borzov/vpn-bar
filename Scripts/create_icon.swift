@@ -3,6 +3,9 @@
 import AppKit
 import Foundation
 
+/// Создает квадратную иконку указанного размера с замком VPN Bar.
+/// - Parameter size: Размер стороны в пикселях.
+/// - Returns: Сгенерированное изображение NSImage.
 func createIcon(size: Int) -> NSImage {
     let sizeFloat = CGFloat(size)
     let image = NSImage(size: NSSize(width: sizeFloat, height: sizeFloat))

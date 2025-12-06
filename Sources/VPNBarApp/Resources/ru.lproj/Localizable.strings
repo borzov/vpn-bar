@@ -1,70 +1,71 @@
-/* MenuController */
-"No VPN Connections" = "Нет VPN подключений";
-"Connected" = "подключено";
-"Connecting..." = "подключение...";
-"Disconnecting..." = "отключение...";
-"Settings" = "Настройки";
-"Quit" = "Выйти";
+// MARK: - Common
+"common.button.ok" = "ОК";
+"common.unit.seconds" = "секунд";
 
-/* StatusBarController */
-"VPN Connected" = "VPN подключен";
-"VPN Disconnected" = "VPN отключен";
-"Connected to %@" = "Подключено к %@";
-"Disconnected from %@" = "Отключено от %@";
+// MARK: - Menu
+"menu.empty.noConnections" = "Нет VPN подключений";
+"menu.action.openNetworkPreferences" = "Открыть настройки сети...";
+"menu.action.settings" = "Настройки";
+"menu.action.quit" = "Выйти";
+"menu.action.disconnectAll" = "Отключить все";
+"menu.status.connected" = "подключено";
+"menu.status.connecting" = "подключение...";
+"menu.status.disconnecting" = "отключение...";
+"menu.status.disconnected" = "отключено";
+"menu.accessibility.toggleConnection" = "Нажмите для переключения подключения";
 
-/* SettingsWindowController */
-"Preferences" = "Настройки";
-"General" = "Основные";
-"Hotkeys" = "Горячие клавиши";
-"VPN Bar Settings" = "Настройки VPN Bar";
-"Application Settings" = "Настройки приложения";
-"Status Update Interval" = "Интервал обновления статуса";
-"seconds" = "секунд";
-"Status Update Interval Description" = "Как часто приложение будет проверять список VPN подключений. Рекомендуется: 10-15 секунд.";
-"Toggle VPN Connection" = "Переключение VPN подключения";
-"Record Shortcut" = "Записать комбинацию";
-"Press keys..." = "Нажмите клавиши...";
-"Toggle VPN Hotkey Description" = "Установите глобальную горячую клавишу для переключения VPN подключения (аналогично левому клику по иконке в строке меню).";
-"Hotkeys work globally and allow you to toggle VPN connection from anywhere in the system." = "Горячие клавиши работают глобально и позволяют переключать VPN подключение из любого места в системе.";
-"Notifications" = "Уведомления";
-"Show notifications when VPN connects or disconnects" = "Показывать уведомления при подключении или отключении VPN";
-"Show notifications description" = "Отображать системные уведомления при изменении статуса VPN подключения.";
-"Display" = "Отображение";
-"Show connection name in tooltip" = "Показывать имя подключения во всплывающей подсказке";
-"Show connection name description" = "Отображать имя активного VPN подключения во всплывающей подсказке иконки в строке меню.";
+// MARK: - Status
+"status.tooltip.connecting" = "VPN подключается…";
+"status.tooltip.connected" = "VPN подключен";
+"status.tooltip.disconnected" = "VPN отключен";
+"status.tooltip.connectedTo" = "Подключено к %@";
+"status.accessibility.label" = "Статус VPN";
+"status.accessibility.help" = "Нажмите для переключения VPN, правый клик для меню";
 
-/* VPNManager */
-"Failed to load NetworkExtension framework: %@" = "Не удалось загрузить NetworkExtension framework: %@";
-"VPN connection not found: %@" = "VPN подключение не найдено: %@";
-"VPN session not found for %@, creating..." = "Сессия VPN не найдена для %@, создаем...";
-"VPN session not found for %@" = "Сессия VPN не найдена для %@";
-"Error creating session for %@" = "Ошибка создания сессии для %@";
-"Error: sharedManager unavailable" = "Ошибка: sharedManager недоступен";
+// MARK: - Notifications
+"notifications.title.connected" = "VPN подключен";
+"notifications.title.disconnected" = "VPN отключен";
+"notifications.body.connected" = "VPN подключен";
+"notifications.body.disconnected" = "VPN отключен";
+"notifications.body.connectedTo" = "Подключено к %@";
+"notifications.body.disconnectedFrom" = "Отключено от %@";
 
-/* Errors */
-"No VPN configurations found. Configure VPN in System Preferences → Network." = "VPN-подключения не найдены. Настройте VPN в Системных настройках → Сеть.";
-"Open Network Preferences..." = "Открыть настройки сети...";
+// MARK: - Settings
+"settings.title.preferences" = "Настройки";
+"settings.tab.general" = "Основные";
+"settings.tab.hotkeys" = "Горячие клавиши";
+"settings.tab.about" = "О программе";
+"settings.status.title" = "Обновление статуса";
+"settings.status.description" = "Как часто обновлять статус VPN.";
+"settings.status.seconds" = "секунд";
+"settings.notifications.title" = "Уведомления";
+"settings.notifications.toggle" = "Показывать уведомления при подключении или отключении VPN";
+"settings.notifications.description" = "Показывать системные уведомления при подключении/отключении.";
+"settings.display.title" = "Отображение";
+"settings.display.showName" = "Показывать имя подключения во всплывающей подсказке";
+"settings.display.description" = "Показывать имя VPN во всплывающей подсказке.";
+"settings.startup.title" = "Запуск";
+"settings.startup.launchAtLogin" = "Запускать при входе в систему";
+"settings.startup.description" = "Запускать VPN Bar при входе в систему.";
+"settings.startup.requires13" = "(Требуется macOS 13 или новее)";
+"settings.hotkey.title" = "Горячая клавиша";
+"settings.hotkey.record" = "Записать комбинацию";
+"settings.hotkey.pressKeys" = "Нажмите клавиши...";
+"settings.hotkey.description" = "Глобальная комбинация для переключения VPN.";
+"settings.hotkey.validation.missingModifier" = "Комбинация должна содержать хотя бы одну клавишу-модификатор (⌘, ⌃ или ⌥).";
+"settings.hotkey.validation.reserved" = "Эта комбинация клавиш зарезервирована системой. Выберите другую.";
+"settings.hotkey.keyPlaceholder" = "Клавиша %d";
+"settings.about.version" = "Версия %@";
+"settings.about.author" = "Автор: Максим Борзов";
+"settings.about.description" = "Утилита, работающая в менюбаре: помогает быстро смотреть статус, подключать и управлять VPN-конфигурациями macOS, есть глобальная горячая клавиша для переключения.";
+"settings.about.repoButton" = "Открыть репозиторий";
 
-/* Hotkey validation */
-"Invalid Hotkey" = "Некорректная комбинация";
-"OK" = "ОК";
-"Hotkey must include at least one modifier key (⌘, ⌃, or ⌥)." = "Комбинация должна содержать хотя бы одну клавишу-модификатор (⌘, ⌃ или ⌥).";
-"This key combination is reserved by the system. Please choose another." = "Эта комбинация клавиш зарезервирована системой. Выберите другую.";
-
-/* Settings - Startup */
-"Startup" = "Запуск";
-"Launch at login" = "Запускать при входе в систему";
-"Automatically start VPN Bar when you log in." = "Автоматически запускать VPN Bar при входе в систему.";
-"(Requires macOS 13 or later)" = "(Требуется macOS 13 или новее)";
-
-/* Menu */
-"Disconnect All" = "Отключить все";
-
-/* Accessibility */
-"VPN Status" = "Статус VPN";
-"Click to toggle VPN, right-click for menu" = "Нажмите для переключения VPN, правый клик для меню";
-"Click to toggle connection" = "Нажмите для переключения подключения";
-
-/* Hotkeys */
-"Key %d" = "Клавиша %d";
+// MARK: - Errors
+"error.vpn.noConfigurations" = "VPN-подключения не найдены. Настройте VPN в Системных настройках → Сеть.";
+"error.vpn.loadFrameworkFailed" = "Не удалось загрузить NetworkExtension framework: %@";
+"error.vpn.sharedManagerUnavailable" = "Ошибка: sharedManager недоступен";
+"error.vpn.connectionNotFound" = "VPN подключение не найдено: %@";
+"error.vpn.sessionNotFoundCreating" = "Сессия VPN не найдена для %@, создаем...";
+"error.vpn.sessionNotFound" = "Сессия VPN не найдена для %@";
+"error.vpn.sessionCreateFailed" = "Ошибка создания сессии для %@";
 

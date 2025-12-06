@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import Carbon
 
+/// Контролирует окно настроек и запись глобальных горячих клавиш.
 @MainActor
 class SettingsWindowController {
     static let shared = SettingsWindowController()
@@ -10,6 +11,7 @@ class SettingsWindowController {
     private var tabView: NSTabView?
     private var updateIntervalTextField: NSTextField?
     private var hotkeyButton: NSButton?
+    private var hotkeyValidationLabel: NSTextField?
     private var showNotificationsCheckbox: NSButton?
     private var showConnectionNameCheckbox: NSButton?
     private var launchAtLoginCheckbox: NSButton?
@@ -22,6 +24,7 @@ class SettingsWindowController {
     private var cancellables = Set<AnyCancellable>()
     private let vpnManager = VPNManager.shared
     private let settingsManager = SettingsManager.shared
+    private let repositoryURL = URL(string: "https://github.com/borzov/VPNBarApp")
     
     private init() {
         createWindow()
@@ -29,13 +32,16 @@ class SettingsWindowController {
     
     private func createWindow() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 580, height: 420),
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 420),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
         
-        window.title = NSLocalizedString("Preferences", comment: "")
+        window.title = NSLocalizedString(
+            "settings.title.preferences",
+            comment: "Title for the preferences window"
+        )
         window.center()
         window.isReleasedWhenClosed = false
         
@@ -49,15 +55,21 @@ class SettingsWindowController {
         
         // Вкладка General
         let generalTab = NSTabViewItem(identifier: "general")
-        generalTab.label = NSLocalizedString("General", comment: "")
+        generalTab.label = NSLocalizedString("settings.tab.general", comment: "General tab title")
         generalTab.view = createGeneralView()
         tabView.addTabViewItem(generalTab)
         
         // Вкладка Hotkeys
         let hotkeysTab = NSTabViewItem(identifier: "hotkeys")
-        hotkeysTab.label = NSLocalizedString("Hotkeys", comment: "")
+        hotkeysTab.label = NSLocalizedString("settings.tab.hotkeys", comment: "Hotkeys tab title")
         hotkeysTab.view = createHotkeysView()
         tabView.addTabViewItem(hotkeysTab)
+
+        // Вкладка About
+        let aboutTab = NSTabViewItem(identifier: "about")
+        aboutTab.label = NSLocalizedString("settings.tab.about", comment: "About tab title")
+        aboutTab.view = createAboutView()
+        tabView.addTabViewItem(aboutTab)
         
         contentView.addSubview(tabView)
         
@@ -96,24 +108,28 @@ class SettingsWindowController {
         mainStack.orientation = .vertical
         mainStack.alignment = .leading
         mainStack.distribution = .fill
-        mainStack.spacing = 20
+        mainStack.spacing = 12
         mainStack.translatesAutoresizingMaskIntoConstraints = false
         
-        // НОВОЕ: Секция: Запуск
+        // Секция: Запуск
         let startupSection = createStartupSection()
         mainStack.addArrangedSubview(startupSection)
+        mainStack.addArrangedSubview(makeDivider())
         
         // Секция: Интервал обновления
         let intervalSection = createIntervalSection()
         mainStack.addArrangedSubview(intervalSection)
+        mainStack.addArrangedSubview(makeDivider())
         
         // Секция: Уведомления
         let notificationsSection = createNotificationsSection()
         mainStack.addArrangedSubview(notificationsSection)
+        mainStack.addArrangedSubview(makeDivider())
         
         // Секция: Отображение
         let displaySection = createDisplaySection()
         mainStack.addArrangedSubview(displaySection)
+        mainStack.addArrangedSubview(makeDivider())
         
         contentView.addSubview(mainStack)
         
@@ -136,7 +152,12 @@ class SettingsWindowController {
         sectionStack.spacing = 6
         
         // Заголовок секции
-        let sectionLabel = NSTextField(labelWithString: NSLocalizedString("Status Update Interval", comment: ""))
+        let sectionLabel = NSTextField(
+            labelWithString: NSLocalizedString(
+                "settings.status.title",
+                comment: "Status update section title"
+            )
+        )
         sectionLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         sectionStack.addArrangedSubview(sectionLabel)
         
@@ -157,9 +178,24 @@ class SettingsWindowController {
         textField.widthAnchor.constraint(equalToConstant: 60).isActive = true
         self.updateIntervalTextField = textField
         inputStack.addArrangedSubview(textField)
+
+        // Степпер
+        let stepper = NSStepper()
+        stepper.minValue = 5
+        stepper.maxValue = 60
+        stepper.increment = 1
+        stepper.integerValue = Int(settingsManager.updateInterval)
+        stepper.target = self
+        stepper.action = #selector(updateIntervalChangedStepper(_:))
+        inputStack.addArrangedSubview(stepper)
         
         // Метка "секунд"
-        let secondsLabel = NSTextField(labelWithString: NSLocalizedString("seconds", comment: ""))
+        let secondsLabel = NSTextField(
+            labelWithString: NSLocalizedString(
+                "settings.status.seconds",
+                comment: "Label for seconds unit"
+            )
+        )
         secondsLabel.font = NSFont.systemFont(ofSize: 13)
         inputStack.addArrangedSubview(secondsLabel)
         
@@ -171,7 +207,12 @@ class SettingsWindowController {
         sectionStack.addArrangedSubview(inputStack)
         
         // Описание
-        let description = NSTextField(wrappingLabelWithString: NSLocalizedString("Status Update Interval Description", comment: ""))
+        let description = NSTextField(
+            wrappingLabelWithString: NSLocalizedString(
+                "settings.status.description",
+                comment: "Description for status update interval"
+            )
+        )
         description.font = NSFont.systemFont(ofSize: 11)
         description.textColor = .secondaryLabelColor
         description.preferredMaxLayoutWidth = 524
@@ -188,19 +229,36 @@ class SettingsWindowController {
         sectionStack.spacing = 6
         
         // Заголовок секции
-        let sectionLabel = NSTextField(labelWithString: NSLocalizedString("Notifications", comment: ""))
+        let sectionLabel = NSTextField(
+            labelWithString: NSLocalizedString(
+                "settings.notifications.title",
+                comment: "Notifications section title"
+            )
+        )
         sectionLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         sectionStack.addArrangedSubview(sectionLabel)
         
         // Чекбокс
-        let checkbox = NSButton(checkboxWithTitle: NSLocalizedString("Show notifications when VPN connects or disconnects", comment: ""), target: self, action: #selector(showNotificationsChanged(_:)))
+        let checkbox = NSButton(
+            checkboxWithTitle: NSLocalizedString(
+                "settings.notifications.toggle",
+                comment: "Toggle to show notifications on connect/disconnect"
+            ),
+            target: self,
+            action: #selector(showNotificationsChanged(_:))
+        )
         checkbox.state = settingsManager.showNotifications ? .on : .off
         checkbox.font = NSFont.systemFont(ofSize: 13)
         self.showNotificationsCheckbox = checkbox
         sectionStack.addArrangedSubview(checkbox)
         
         // Описание
-        let description = NSTextField(wrappingLabelWithString: NSLocalizedString("Show notifications description", comment: ""))
+        let description = NSTextField(
+            wrappingLabelWithString: NSLocalizedString(
+                "settings.notifications.description",
+                comment: "Description for notifications toggle"
+            )
+        )
         description.font = NSFont.systemFont(ofSize: 11)
         description.textColor = .secondaryLabelColor
         description.preferredMaxLayoutWidth = 524
@@ -217,19 +275,36 @@ class SettingsWindowController {
         sectionStack.spacing = 6
         
         // Заголовок секции
-        let sectionLabel = NSTextField(labelWithString: NSLocalizedString("Display", comment: ""))
+        let sectionLabel = NSTextField(
+            labelWithString: NSLocalizedString(
+                "settings.display.title",
+                comment: "Display section title"
+            )
+        )
         sectionLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         sectionStack.addArrangedSubview(sectionLabel)
         
         // Чекбокс
-        let checkbox = NSButton(checkboxWithTitle: NSLocalizedString("Show connection name in tooltip", comment: ""), target: self, action: #selector(showConnectionNameChanged(_:)))
+        let checkbox = NSButton(
+            checkboxWithTitle: NSLocalizedString(
+                "settings.display.showName",
+                comment: "Toggle to show connection name in tooltip"
+            ),
+            target: self,
+            action: #selector(showConnectionNameChanged(_:))
+        )
         checkbox.state = settingsManager.showConnectionName ? .on : .off
         checkbox.font = NSFont.systemFont(ofSize: 13)
         self.showConnectionNameCheckbox = checkbox
         sectionStack.addArrangedSubview(checkbox)
         
         // Описание
-        let description = NSTextField(wrappingLabelWithString: NSLocalizedString("Show connection name description", comment: ""))
+        let description = NSTextField(
+            wrappingLabelWithString: NSLocalizedString(
+                "settings.display.description",
+                comment: "Description for showing connection name"
+            )
+        )
         description.font = NSFont.systemFont(ofSize: 11)
         description.textColor = .secondaryLabelColor
         description.preferredMaxLayoutWidth = 524
@@ -245,14 +320,20 @@ class SettingsWindowController {
         sectionStack.distribution = .fill
         sectionStack.spacing = 6
         
-        // Заголовок секции
-        let sectionLabel = NSTextField(labelWithString: NSLocalizedString("Startup", comment: ""))
+        let sectionLabel = NSTextField(
+            labelWithString: NSLocalizedString(
+                "settings.startup.title",
+                comment: "Startup section title"
+            )
+        )
         sectionLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         sectionStack.addArrangedSubview(sectionLabel)
         
-        // Чекбокс
         let checkbox = NSButton(
-            checkboxWithTitle: NSLocalizedString("Launch at login", comment: ""),
+            checkboxWithTitle: NSLocalizedString(
+                "settings.startup.launchAtLogin",
+                comment: "Toggle to launch app at login"
+            ),
             target: self,
             action: #selector(launchAtLoginChanged(_:))
         )
@@ -268,9 +349,15 @@ class SettingsWindowController {
         sectionStack.addArrangedSubview(checkbox)
         
         // Описание
-        var descriptionText = NSLocalizedString("Automatically start VPN Bar when you log in.", comment: "")
+        var descriptionText = NSLocalizedString(
+            "settings.startup.description",
+            comment: "Description for launch at login toggle"
+        )
         if !settingsManager.isLaunchAtLoginAvailable {
-            descriptionText += " " + NSLocalizedString("(Requires macOS 13 or later)", comment: "")
+            descriptionText += " " + NSLocalizedString(
+                "settings.startup.requires13",
+                comment: "Note about macOS version requirement"
+            )
         }
         
         let description = NSTextField(wrappingLabelWithString: descriptionText)
@@ -290,12 +377,8 @@ class SettingsWindowController {
         mainStack.orientation = .vertical
         mainStack.alignment = .leading
         mainStack.distribution = .fill
-        mainStack.spacing = 20
+        mainStack.spacing = 14
         mainStack.translatesAutoresizingMaskIntoConstraints = false
-        
-        // Секция с инструкциями
-        let instructionsSection = createInstructionsSection()
-        mainStack.addArrangedSubview(instructionsSection)
         
         // Секция: Toggle VPN
         let toggleSection = createToggleHotkeySection()
@@ -314,25 +397,19 @@ class SettingsWindowController {
         return contentView
     }
     
-    private func createInstructionsSection() -> NSView {
-        let description = NSTextField(wrappingLabelWithString: NSLocalizedString("Hotkeys work globally and allow you to toggle VPN connection from anywhere in the system.", comment: ""))
-        description.font = NSFont.systemFont(ofSize: 11)
-        description.textColor = .secondaryLabelColor
-        description.preferredMaxLayoutWidth = 524
-        description.translatesAutoresizingMaskIntoConstraints = false
-        
-        return description
-    }
-    
     private func createToggleHotkeySection() -> NSView {
         let sectionStack = NSStackView()
         sectionStack.orientation = .vertical
         sectionStack.alignment = .leading
         sectionStack.distribution = .fill
-        sectionStack.spacing = 6
+        sectionStack.spacing = 8
         
-        // Заголовок секции
-        let sectionLabel = NSTextField(labelWithString: NSLocalizedString("Toggle VPN Connection", comment: ""))
+        let sectionLabel = NSTextField(
+            labelWithString: NSLocalizedString(
+                "settings.hotkey.title",
+                comment: "Hotkey section title"
+            )
+        )
         sectionLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         sectionStack.addArrangedSubview(sectionLabel)
         
@@ -345,8 +422,15 @@ class SettingsWindowController {
         
         // Кнопка для отображения/записи горячей клавиши (как в Shottr)
         let hotkeyButton = NSButton()
-        hotkeyButton.bezelStyle = .rounded
+        hotkeyButton.bezelStyle = .recessed
         hotkeyButton.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+        hotkeyButton.focusRingType = .none
+        hotkeyButton.wantsLayer = true
+        hotkeyButton.layer?.cornerRadius = 6
+        hotkeyButton.layer?.borderWidth = 1
+        hotkeyButton.layer?.borderColor = NSColor.separatorColor.cgColor
+        hotkeyButton.contentTintColor = .secondaryLabelColor
+        hotkeyButton.setButtonType(.momentaryPushIn)
         hotkeyButton.target = self
         hotkeyButton.action = #selector(hotkeyButtonClicked(_:))
         
@@ -359,13 +443,16 @@ class SettingsWindowController {
         // Кнопка очистки (если есть горячая клавиша)
         if settingsManager.hotkeyKeyCode != nil {
             let clearButton = NSButton()
-            clearButton.title = "×"
-            clearButton.bezelStyle = .circular
+            clearButton.title = ""
+            clearButton.bezelStyle = .texturedRounded
             clearButton.target = self
             clearButton.action = #selector(clearHotkey(_:))
-            clearButton.widthAnchor.constraint(equalToConstant: 20).isActive = true
-            clearButton.heightAnchor.constraint(equalToConstant: 20).isActive = true
-            clearButton.font = NSFont.systemFont(ofSize: 14, weight: .medium)
+            clearButton.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)
+            clearButton.imagePosition = .imageOnly
+            clearButton.widthAnchor.constraint(equalToConstant: 22).isActive = true
+            clearButton.heightAnchor.constraint(equalToConstant: 22).isActive = true
+            clearButton.isBordered = false
+            clearButton.contentTintColor = .secondaryLabelColor
             self.clearHotkeyButton = clearButton
             inputStack.addArrangedSubview(clearButton)
         } else {
@@ -373,9 +460,24 @@ class SettingsWindowController {
         }
         
         sectionStack.addArrangedSubview(inputStack)
-        
+
+        // Inline-валидация (скрыта по умолчанию)
+        let validationLabel = NSTextField(labelWithString: "")
+        validationLabel.font = NSFont.systemFont(ofSize: 11)
+        validationLabel.textColor = .systemRed
+        validationLabel.isHidden = true
+        validationLabel.preferredMaxLayoutWidth = 520
+        validationLabel.lineBreakMode = .byWordWrapping
+        sectionStack.addArrangedSubview(validationLabel)
+        self.hotkeyValidationLabel = validationLabel
+
         // Описание
-        let description = NSTextField(wrappingLabelWithString: NSLocalizedString("Toggle VPN Hotkey Description", comment: ""))
+        let description = NSTextField(
+            wrappingLabelWithString: NSLocalizedString(
+                "settings.hotkey.description",
+                comment: "Description for global VPN toggle hotkey"
+            )
+        )
         description.font = NSFont.systemFont(ofSize: 11)
         description.textColor = .secondaryLabelColor
         description.preferredMaxLayoutWidth = 524
@@ -395,9 +497,14 @@ class SettingsWindowController {
             let hotkeyString = formatHotkey(keyCode: keyCode, modifiers: modifiers)
             button.title = hotkeyString
             button.contentTintColor = .labelColor
+            button.layer?.borderColor = NSColor.separatorColor.cgColor
         } else {
-            button.title = NSLocalizedString("Record Shortcut", comment: "")
+            button.title = NSLocalizedString(
+                "settings.hotkey.record",
+                comment: "Button title to start recording shortcut"
+            )
             button.contentTintColor = .secondaryLabelColor
+            button.layer?.borderColor = NSColor.separatorColor.cgColor
         }
     }
     
@@ -425,8 +532,14 @@ class SettingsWindowController {
         isRecordingHotkey = true
         recordedKeyCode = nil
         recordedModifiers = 0
-        hotkeyButton?.title = NSLocalizedString("Press keys...", comment: "")
-        hotkeyButton?.contentTintColor = .systemBlue
+        clearValidationMessage()
+        hotkeyButton?.title = NSLocalizedString(
+            "settings.hotkey.pressKeys",
+            comment: "Button title while recording shortcut"
+        )
+        hotkeyButton?.contentTintColor = .controlAccentColor
+        hotkeyButton?.layer?.borderColor = NSColor.controlAccentColor.cgColor
+        hotkeyButton?.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.08).cgColor
         
         // Устанавливаем глобальный монитор событий
         globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { [weak self] event in
@@ -452,6 +565,9 @@ class SettingsWindowController {
                 if let button = hotkeyButton {
                     updateHotkeyButtonTitle(button)
                 }
+                clearValidationMessage()
+                hotkeyButton?.layer?.borderColor = NSColor.separatorColor.cgColor
+                hotkeyButton?.layer?.backgroundColor = NSColor.clear.cgColor
                 return
             }
             
@@ -470,23 +586,23 @@ class SettingsWindowController {
                 carbonModifiers |= UInt32(controlKey)
             }
             
-            // НОВОЕ: Проверка на наличие модификаторов
+            // Валидация: требуется хотя бы один модификатор
             if !hasRequiredModifiers(carbonModifiers) {
                 showHotkeyValidationError(
                     NSLocalizedString(
-                        "Hotkey must include at least one modifier key (⌘, ⌃, or ⌥).",
-                        comment: ""
+                        "settings.hotkey.validation.missingModifier",
+                        comment: "Validation error when no required modifier in hotkey"
                     )
                 )
                 return
             }
             
-            // НОВОЕ: Проверка на системные комбинации
+            // Валидация: не используем системные комбинации
             if isSystemReservedHotkey(keyCode: keyCode, modifiers: carbonModifiers) {
                 showHotkeyValidationError(
                     NSLocalizedString(
-                        "This key combination is reserved by the system. Please choose another.",
-                        comment: ""
+                        "settings.hotkey.validation.reserved",
+                        comment: "Validation error when hotkey is system-reserved"
                     )
                 )
                 return
@@ -540,14 +656,12 @@ class SettingsWindowController {
         return hasCmd || hasCtrl || hasOption
     }
     
-    /// Показывает предупреждение о некорректной горячей клавише
     private func showHotkeyValidationError(_ message: String) {
-        let alert = NSAlert()
-        alert.messageText = NSLocalizedString("Invalid Hotkey", comment: "")
-        alert.informativeText = message
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: NSLocalizedString("OK", comment: ""))
-        alert.runModal()
+        if let label = hotkeyValidationLabel {
+            label.stringValue = message
+            label.isHidden = false
+        }
+        hotkeyButton?.layer?.borderColor = NSColor.systemRed.cgColor
     }
     
     private func stopRecordingHotkey() {
@@ -555,7 +669,11 @@ class SettingsWindowController {
         
         if let button = hotkeyButton {
             updateHotkeyButtonTitle(button)
+            button.contentTintColor = .labelColor
+            button.layer?.borderColor = NSColor.separatorColor.cgColor
+            button.layer?.backgroundColor = NSColor.clear.cgColor
         }
+        clearValidationMessage()
         
         // Удаляем мониторы событий
         if let monitor = globalEventMonitor {
@@ -587,6 +705,7 @@ class SettingsWindowController {
         if let button = hotkeyButton {
             updateHotkeyButtonTitle(button)
         }
+        clearValidationMessage()
         updateHotkeyUI()
         registerHotkey()
     }
@@ -614,7 +733,15 @@ class SettingsWindowController {
         if let keyChar = keyCodeToString(keyCode) {
             parts.append(keyChar)
         } else {
-            parts.append(String(format: NSLocalizedString("Key %d", comment: ""), keyCode))
+            parts.append(
+                String(
+                    format: NSLocalizedString(
+                        "settings.hotkey.keyPlaceholder",
+                        comment: "Fallback label for a key code"
+                    ),
+                    keyCode
+                )
+            )
         }
         
         return parts.joined()
@@ -671,6 +798,13 @@ class SettingsWindowController {
             clearHotkeyButton = nil
         }
     }
+
+    private func clearValidationMessage() {
+        if let label = hotkeyValidationLabel {
+            label.stringValue = ""
+            label.isHidden = true
+        }
+    }
     
     deinit {
         NotificationCenter.default.removeObserver(self)
@@ -702,6 +836,12 @@ class SettingsWindowController {
     @objc private func updateIntervalDidChange() {
         updateIntervalTextField?.stringValue = String(format: "%.0f", settingsManager.updateInterval)
     }
+
+    @objc private func updateIntervalChangedStepper(_ sender: NSStepper) {
+        let value = sender.integerValue
+        updateIntervalTextField?.stringValue = "\(value)"
+        updateIntervalChanged(updateIntervalTextField ?? NSTextField(string: "\(value)"))
+    }
     
     @objc private func hotkeyDidChange() {
         if let button = hotkeyButton {
@@ -710,6 +850,7 @@ class SettingsWindowController {
         registerHotkey()
     }
     
+    /// Показывает окно настроек и синхронизирует элементы управления с текущими значениями.
     func showWindow() {
         updateIntervalTextField?.stringValue = String(format: "%.0f", settingsManager.updateInterval)
         if let button = hotkeyButton {
@@ -721,5 +862,83 @@ class SettingsWindowController {
         
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func createAboutView() -> NSView {
+        let contentView = NSView()
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.distribution = .fill
+        stack.spacing = 10
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        let title = NSTextField(labelWithString: Bundle.main.appName)
+        title.font = NSFont.systemFont(ofSize: 16, weight: .semibold)
+
+        let versionString = Bundle.main.formattedVersion
+        let versionLabel = NSTextField(labelWithString: String(
+            format: NSLocalizedString("settings.about.version", comment: "App version label"),
+            versionString
+        ))
+        versionLabel.font = NSFont.systemFont(ofSize: 12)
+        versionLabel.textColor = .secondaryLabelColor
+
+        let authorLabel = NSTextField(labelWithString: NSLocalizedString("settings.about.author", comment: "Author info"))
+        authorLabel.font = NSFont.systemFont(ofSize: 12)
+        authorLabel.textColor = .secondaryLabelColor
+
+        let descriptionLabel = NSTextField(wrappingLabelWithString: NSLocalizedString("settings.about.description", comment: "About description"))
+        descriptionLabel.font = NSFont.systemFont(ofSize: 12)
+        descriptionLabel.textColor = .secondaryLabelColor
+        descriptionLabel.preferredMaxLayoutWidth = 520
+
+        let repoButton = NSButton()
+        repoButton.title = NSLocalizedString("settings.about.repoButton", comment: "Open repository button")
+        repoButton.bezelStyle = .rounded
+        repoButton.target = self
+        repoButton.action = #selector(openRepository(_:))
+
+        [title, versionLabel, authorLabel, descriptionLabel, repoButton].forEach { stack.addArrangedSubview($0) }
+
+        contentView.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
+            stack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -16),
+            stack.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -16)
+        ])
+
+        return contentView
+    }
+
+    @objc private func openRepository(_ sender: Any) {
+        guard let url = repositoryURL else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    private func makeDivider() -> NSView {
+        let box = NSBox()
+        box.boxType = .separator
+        box.translatesAutoresizingMaskIntoConstraints = false
+        box.heightAnchor.constraint(equalToConstant: 1).isActive = true
+        return box
+    }
+}
+
+private extension Bundle {
+    var appName: String {
+        object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+            ?? object(forInfoDictionaryKey: "CFBundleName") as? String
+            ?? "VPN Bar"
+    }
+
+    var formattedVersion: String {
+        let short = object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        let build = object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
+        return build.isEmpty ? short : "\(short) (\(build))"
     }
 }
