@@ -7,9 +7,8 @@ final class NotificationManagerIntegrationTests: XCTestCase {
     
     override func setUp() {
         super.setUp()
-        // Пропускаем тесты, если системные API недоступны
-        // Эти тесты требуют правильного bundle и системных разрешений
-        // В реальном приложении они работают корректно
+        // Инициализируем sut для предотвращения крашей, даже если тесты будут пропущены
+        sut = NotificationManager.shared
     }
     
     override func tearDown() {

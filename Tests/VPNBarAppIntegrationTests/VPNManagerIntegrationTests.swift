@@ -7,9 +7,8 @@ final class VPNManagerIntegrationTests: XCTestCase {
     
     override func setUp() {
         super.setUp()
-        // Пропускаем тесты, если системные API недоступны
-        // Эти тесты требуют реальных VPN конфигураций в системе
-        // В реальном приложении они работают корректно
+        // Инициализируем sut для предотвращения крашей, даже если тесты будут пропущены
+        sut = VPNManager.shared
     }
     
     override func tearDown() {
