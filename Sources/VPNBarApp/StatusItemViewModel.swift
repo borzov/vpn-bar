@@ -22,6 +22,9 @@ final class StatusItemViewModel {
     /// Текущее состояние, публикуемое для обновления UI.
     @Published private(set) var state: State
 
+    private static var cachedConnectedImage: NSImage?
+    private static var cachedDisconnectedImage: NSImage?
+
     private let vpnManager: VPNManagerProtocol
     private let settings: SettingsManagerProtocol
     private var cancellables = Set<AnyCancellable>()
@@ -113,14 +116,23 @@ final class StatusItemViewModel {
     }
 
     private static func makeConnectedImage() -> NSImage? {
+        if let cached = cachedConnectedImage {
+            return cached
+        }
+        
         guard let image = NSImage(systemSymbolName: "network.badge.shield.half.filled", accessibilityDescription: nil) else {
             return nil
         }
         image.isTemplate = true
+        cachedConnectedImage = image
         return image
     }
 
     private static func makeDisconnectedImage() -> NSImage? {
+        if let cached = cachedDisconnectedImage {
+            return cached
+        }
+        
         guard let base = NSImage(systemSymbolName: "network", accessibilityDescription: nil) else {
             return nil
         }
@@ -129,6 +141,7 @@ final class StatusItemViewModel {
         base.draw(at: .zero, from: .zero, operation: .sourceOver, fraction: 0.4)
         image.unlockFocus()
         image.isTemplate = true
+        cachedDisconnectedImage = image
         return image
     }
 }

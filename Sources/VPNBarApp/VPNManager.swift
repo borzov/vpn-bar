@@ -25,9 +25,8 @@ class VPNManager: VPNManagerProtocol {
     
     private let configurationLoader: VPNConfigurationLoaderProtocol
     private let sessionManager: VPNSessionManagerProtocol
-    private let statusMonitor: VPNStatusMonitorProtocol
+    private let statusMonitor: VPNStatusMonitorProtocol?
     private var updateTimer: Timer?
-    private var connectionsReloadTimer: Timer?
     private var loadTask: Task<Void, Never>?
     
     /// Интервал обновления списка соединений; при изменении перезапускает мониторинг.
@@ -42,7 +41,9 @@ class VPNManager: VPNManagerProtocol {
     }
     
     private var lastStatusUpdate: Date = Date()
+    private var lastFullReload: Date = Date()
     private let statusUpdateInterval: TimeInterval = AppConstants.sessionStatusUpdateInterval
+    private let connectionsListReloadInterval: TimeInterval = AppConstants.connectionsListReloadInterval
     
     init(
         configurationLoader: VPNConfigurationLoaderProtocol? = nil,
@@ -66,21 +67,19 @@ class VPNManager: VPNManagerProtocol {
         }
         self.sessionManager = sessionManager ?? VPNSessionManager(statusUpdateHandler: handler)
         
-        // Создаем statusMonitor с sessionManager
-        self.statusMonitor = statusMonitor ?? VPNStatusMonitor(sessionManager: self.sessionManager)
+        // statusMonitor используется только для тестирования
+        self.statusMonitor = statusMonitor
         
         _ = updateInterval
         
         loadConnections(forceReload: true)
+        lastFullReload = Date()
         startMonitoring()
-        startConnectionsReloadTimer()
     }
     
     deinit {
         updateTimer?.invalidate()
         updateTimer = nil
-        connectionsReloadTimer?.invalidate()
-        connectionsReloadTimer = nil
         // Note: deinit не может вызывать @MainActor методы синхронно
         // Очистка будет выполнена при завершении приложения через AppDelegate
     }
@@ -89,6 +88,10 @@ class VPNManager: VPNManagerProtocol {
     /// - Parameter forceReload: Принудительно перезагружает даже при наличии кэша.
     func loadConnections(forceReload: Bool = false) {
         loadTask?.cancel()
+        
+        if forceReload {
+            lastFullReload = Date()
+        }
         
         loadTask = Task { @MainActor in
             guard !Task.isCancelled else { return }
@@ -307,13 +310,25 @@ class VPNManager: VPNManagerProtocol {
         }
         
         let vpnStatus = convertToVPNStatus(from: newStatus)
+        let oldStatus = connections[index].status
         
-        if connections[index].status != vpnStatus {
+        if oldStatus != vpnStatus {
             var updatedConnections = connections
             updatedConnections[index].status = vpnStatus
             objectWillChange.send()
             connections = updatedConnections
             updateActiveStatus()
+            
+            if oldStatus != .connected && vpnStatus == .connected {
+                StatisticsManager.shared.recordConnection()
+                if let connection = connections.first(where: { $0.id == identifier }) {
+                    ConnectionHistoryManager.shared.addEntry(
+                        connectionID: identifier,
+                        connectionName: connection.name,
+                        action: .connected
+                    )
+                }
+            }
         }
     }
     
@@ -393,13 +408,15 @@ class VPNManager: VPNManagerProtocol {
         let effectiveInterval = max(AppConstants.minUpdateInterval, updateInterval)
         
         updateTimer = Timer.scheduledTimer(withTimeInterval: effectiveInterval, repeats: true) { [weak self] _ in
-            DispatchQueue.main.async {
-                self?.loadConnections(forceReload: false)
+            Task { @MainActor in
+                guard let self = self else { return }
+                
+                let now = Date()
+                let needsFullReload = now.timeIntervalSince(self.lastFullReload) >= self.connectionsListReloadInterval
+                self.loadConnections(forceReload: needsFullReload)
             }
         }
         RunLoop.current.add(updateTimer!, forMode: .common)
-        
-        statusMonitor.startMonitoring()
     }
     
     private func restartMonitoring() {
@@ -409,18 +426,6 @@ class VPNManager: VPNManagerProtocol {
     private func stopMonitoring() {
         updateTimer?.invalidate()
         updateTimer = nil
-        statusMonitor.stopMonitoring()
-    }
-    
-    private func startConnectionsReloadTimer() {
-        connectionsReloadTimer?.invalidate()
-        
-        connectionsReloadTimer = Timer.scheduledTimer(withTimeInterval: AppConstants.connectionsListReloadInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.loadConnections(forceReload: true)
-            }
-        }
-        RunLoop.current.add(connectionsReloadTimer!, forMode: .common)
     }
     
     private func updateActiveStatus() {

@@ -145,15 +145,6 @@ class StatusBarController {
         button.toolTip = content.toolTip
         button.setAccessibilityValue(content.accessibilityValue)
     }
-
-    private func createGrayedImage(from image: NSImage) -> NSImage {
-        let grayImage = NSImage(size: image.size)
-        grayImage.lockFocus()
-        image.draw(at: .zero, from: .zero, operation: .sourceOver, fraction: 0.4)
-        grayImage.unlockFocus()
-        grayImage.isTemplate = true
-        return grayImage
-    }
     
     @objc private func statusBarButtonClicked(_ sender: NSStatusBarButton) {
         let event = NSApp.currentEvent
@@ -202,8 +193,6 @@ class StatusBarController {
     
     /// Отправляет системное уведомление об изменении статуса.
     private func notifyStatusChange(isNowActive: Bool, connectionName: String?) {
-        guard SettingsManager.shared.showNotifications else { return }
-        
         Task { @MainActor in
             NotificationManager.shared.sendVPNNotification(
                 isConnected: isNowActive,

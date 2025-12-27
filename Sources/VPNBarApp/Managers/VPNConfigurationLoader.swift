@@ -18,53 +18,7 @@ final class VPNConfigurationLoader: VPNConfigurationLoaderProtocol {
             return
         }
         
-        let sharedManagerSelector = NSSelectorFromString("sharedManager")
-        guard managerType.responds(to: sharedManagerSelector) else {
-            completion(.failure(.sharedManagerUnavailable))
-            return
-        }
-        
-        let sharedManagerResult = managerType.perform(sharedManagerSelector)
-        guard let manager = sharedManagerResult?.takeUnretainedValue() as? NSObject else {
-            completion(.failure(.sharedManagerUnavailable))
-            return
-        }
-        
-        let selector = NSSelectorFromString("loadConfigurationsWithCompletionQueue:handler:")
-        guard manager.responds(to: selector) else {
-            completion(.failure(.sharedManagerUnavailable))
-            return
-        }
-        
-        let handler: @convention(block) (NSArray?, NSError?) -> Void = { configurations, error in
-            Task { @MainActor in
-                if let error = error {
-                    completion(.failure(.frameworkLoadFailed(reason: error.localizedDescription)))
-                    return
-                }
-                
-                guard let nsArray = configurations as NSArray? else {
-                    completion(.success([]))
-                    return
-                }
-                
-                let connections = self.processConfigurations(nsArray)
-                completion(.success(connections))
-            }
-        }
-        
-        guard let imp = manager.method(for: selector) else {
-            completion(.failure(.sharedManagerUnavailable))
-            return
-        }
-        
-        let block = unsafeBitCast(handler, to: AnyObject.self)
-        let queue = self.sessionQueue
-        
-        typealias MethodType = @convention(c) (AnyObject, Selector, DispatchQueue, AnyObject) -> Void
-        let method = unsafeBitCast(imp, to: MethodType.self)
-        
-        method(manager, selector, queue, block)
+        loadConfigurationsWithManagerType(managerType, completion: completion)
     }
     
     private func loadConfigurationsAlternative(completion: @escaping (Result<[VPNConnection], VPNError>) -> Void) {
@@ -86,10 +40,10 @@ final class VPNConfigurationLoader: VPNConfigurationLoaderProtocol {
             return
         }
         
-        loadConfigurationsWithManagerClass(managerClass, completion: completion)
+        loadConfigurationsWithManagerType(managerClass, completion: completion)
     }
     
-    private func loadConfigurationsWithManagerClass(_ managerType: NSObject.Type, completion: @escaping (Result<[VPNConnection], VPNError>) -> Void) {
+    private func loadConfigurationsWithManagerType(_ managerType: NSObject.Type, completion: @escaping (Result<[VPNConnection], VPNError>) -> Void) {
         let sharedManagerSelector = NSSelectorFromString("sharedManager")
         guard managerType.responds(to: sharedManagerSelector) else {
             completion(.failure(.sharedManagerUnavailable))

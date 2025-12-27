@@ -6,7 +6,6 @@ import SystemConfiguration
 @MainActor
 final class VPNStatusMonitor: VPNStatusMonitorProtocol {
     private let sessionManager: VPNSessionManagerProtocol
-    private var updateTimer: Timer?
     private var statusUpdateTimer: Timer?
     private let statusSubject = PassthroughSubject<[String: SCNetworkConnectionStatus], Never>()
     private let statusUpdateInterval: TimeInterval = AppConstants.sessionStatusUpdateInterval
@@ -31,8 +30,6 @@ final class VPNStatusMonitor: VPNStatusMonitorProtocol {
     }
     
     func stopMonitoring() {
-        updateTimer?.invalidate()
-        updateTimer = nil
         statusUpdateTimer?.invalidate()
         statusUpdateTimer = nil
     }

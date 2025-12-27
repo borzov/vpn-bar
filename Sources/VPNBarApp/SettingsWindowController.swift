@@ -8,7 +8,6 @@ class SettingsWindowController {
     static let shared = SettingsWindowController()
     
     private var window: NSWindow?
-    private var tabView: NSTabView?
     private var updateIntervalTextField: NSTextField?
     private var hotkeyButton: NSButton?
     private var hotkeyValidationLabel: NSTextField?
@@ -21,7 +20,6 @@ class SettingsWindowController {
     private var globalEventMonitor: Any?
     private var localEventMonitor: Any?
     private var clearHotkeyButton: NSButton?
-    private var cancellables = Set<AnyCancellable>()
     private let vpnManager: VPNManagerProtocol
     private let settingsManager: SettingsManagerProtocol
     
@@ -86,7 +84,6 @@ class SettingsWindowController {
         
         window.contentView = contentView
         self.window = window
-        self.tabView = tabView
         
         // Подписки на изменения
         NotificationCenter.default.addObserver(

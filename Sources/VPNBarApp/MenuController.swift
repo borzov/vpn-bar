@@ -162,11 +162,7 @@ class MenuController {
     @objc func vpnConnectionToggled(_ sender: NSMenuItem) {
         guard let connectionID = sender.representedObject as? String else { return }
         vpnManager.toggleConnection(connectionID)
-        
-        // Обновляем меню через небольшую задержку
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.updateMenu()
-        }
+        scheduleMenuUpdate()
     }
     
     @objc private func showSettings(_ sender: NSMenuItem) {
@@ -179,8 +175,10 @@ class MenuController {
     
     @objc private func disconnectAllConnections(_ sender: NSMenuItem) {
         vpnManager.disconnectAll()
-        
-        // Обновляем меню через небольшую задержку
+        scheduleMenuUpdate()
+    }
+    
+    private func scheduleMenuUpdate() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             self.updateMenu()
         }
