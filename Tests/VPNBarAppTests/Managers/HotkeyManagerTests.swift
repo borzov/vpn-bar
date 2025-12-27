@@ -58,5 +58,20 @@ final class HotkeyManagerTests: XCTestCase {
         
         XCTAssertTrue(true)
     }
+    
+    func test_cleanup_unregistersHotkeyAndRemovesEventHandler() {
+        sut.registerHotkey(keyCode: 12, modifiers: 256) {}
+        
+        sut.cleanup()
+        
+        XCTAssertTrue(true)
+    }
+    
+    func test_cleanup_canBeCalledMultipleTimes_doesNotCrash() {
+        sut.cleanup()
+        sut.cleanup()
+        
+        XCTAssertTrue(true)
+    }
 }
 

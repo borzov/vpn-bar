@@ -8,7 +8,9 @@ final class MockSettingsManager: SettingsManagerProtocol {
     var hotkeyModifiers: UInt32?
     var showNotifications: Bool = true
     var showConnectionName: Bool = false
+    var soundFeedbackEnabled: Bool = true
     var launchAtLogin: Bool = false
+    var lastUsedConnectionID: String?
     
     var isLaunchAtLoginAvailable: Bool {
         if #available(macOS 13.0, *) {
@@ -40,6 +42,7 @@ final class MockSettingsManager: SettingsManagerProtocol {
         showNotifications = true
         showConnectionName = false
         launchAtLogin = false
+        lastUsedConnectionID = nil
         updateIntervalChanged = false
         hotkeyChanged = false
         showConnectionNameChanged = false

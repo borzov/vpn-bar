@@ -189,5 +189,27 @@ final class VPNManagerTests: XCTestCase {
         
         XCTAssertTrue(true)
     }
+    
+    func test_toggleConnection_savesLastUsedConnectionID() {
+        sut = VPNManager.shared
+        let connection = VPNConnectionFactory.createDisconnected()
+        sut.connections = [connection]
+        SettingsManager.shared.lastUsedConnectionID = nil
+        
+        sut.toggleConnection(connection.id)
+        
+        XCTAssertEqual(SettingsManager.shared.lastUsedConnectionID, connection.id)
+    }
+    
+    func test_connect_savesLastUsedConnectionID() {
+        sut = VPNManager.shared
+        let connection = VPNConnectionFactory.createDisconnected()
+        sut.connections = [connection]
+        SettingsManager.shared.lastUsedConnectionID = nil
+        
+        sut.connect(to: connection.id)
+        
+        XCTAssertEqual(SettingsManager.shared.lastUsedConnectionID, connection.id)
+    }
 }
 

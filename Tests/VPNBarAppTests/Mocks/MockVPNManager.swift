@@ -6,7 +6,7 @@ import Combine
 final class MockVPNManager: VPNManagerProtocol {
     @Published var connections: [VPNConnection] = []
     @Published var hasActiveConnection: Bool = false
-    @Published var loadingError: String?
+    @Published var loadingError: VPNError?
     
     var updateInterval: TimeInterval = 15.0
     
@@ -36,13 +36,17 @@ final class MockVPNManager: VPNManagerProtocol {
                 updateActiveStatus()
             case .failure(let error):
                 self.connections = []
-                self.loadingError = error.localizedDescription
+                if let vpnError = error as? VPNError {
+                    self.loadingError = vpnError
+                } else {
+                    self.loadingError = .connectionFailed(underlying: error.localizedDescription)
+                }
                 updateActiveStatus()
             }
         }
     }
     
-    func connect(to connectionID: String) {
+    func connect(to connectionID: String, retryCount: Int = 3) {
         connectCalled = true
         connectConnectionID = connectionID
         

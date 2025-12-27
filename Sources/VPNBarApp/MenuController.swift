@@ -9,9 +9,10 @@ class MenuController {
     private var menu: NSMenu?
     private var statusItem: NSStatusItem?
     private var cancellables = Set<AnyCancellable>()
-    private let vpnManager = VPNManager.shared
+    private let vpnManager: VPNManagerProtocol
     
-    private init() {
+    init(vpnManager: VPNManagerProtocol = VPNManager.shared) {
+        self.vpnManager = vpnManager
         observeConnections()
     }
     
@@ -37,12 +38,18 @@ class MenuController {
         buildMenu()
     }
     
+    /// Создает меню для указанного NSMenu (для тестирования).
+    func buildMenu(menu: NSMenu) {
+        buildMenu()
+        menu.items = self.menu?.items ?? []
+    }
+    
     private func buildMenu() {
         let newMenu = NSMenu()
         newMenu.appearance = NSApp.effectiveAppearance
         
         if let error = vpnManager.loadingError {
-            let errorItem = NSMenuItem(title: error, action: nil, keyEquivalent: "")
+            let errorItem = NSMenuItem(title: error.errorDescription ?? "", action: nil, keyEquivalent: "")
             errorItem.isEnabled = false
             if let image = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil) {
                 image.isTemplate = true
@@ -94,31 +101,12 @@ class MenuController {
                 }
                 
                 var title = connection.name
-                switch connection.status {
-                case .connected:
-                    title += " (" + NSLocalizedString("menu.status.connected", comment: "Status label: connected") + ")"
-                case .connecting:
-                    title += " (" + NSLocalizedString("menu.status.connecting", comment: "Status label: connecting") + ")"
-                case .disconnecting:
-                    title += " (" + NSLocalizedString("menu.status.disconnecting", comment: "Status label: disconnecting") + ")"
-                case .disconnected:
-                    break
+                if connection.status != .disconnected {
+                    title += " (\(connection.status.localizedDescription))"
                 }
                 menuItem.title = title
                 
-                let statusDescription: String
-                switch connection.status {
-                case .connected:
-                    statusDescription = NSLocalizedString("menu.status.connected", comment: "Status label: connected")
-                case .connecting:
-                    statusDescription = NSLocalizedString("menu.status.connecting", comment: "Status label: connecting")
-                case .disconnecting:
-                    statusDescription = NSLocalizedString("menu.status.disconnecting", comment: "Status label: disconnecting")
-                case .disconnected:
-                    statusDescription = NSLocalizedString("menu.status.disconnected", comment: "Status label: disconnected")
-                }
-                
-                menuItem.setAccessibilityLabel("\(connection.name), \(statusDescription)")
+                menuItem.setAccessibilityLabel("\(connection.name), \(connection.status.localizedDescription)")
                 menuItem.setAccessibilityHelp(
                     NSLocalizedString(
                         "menu.accessibility.toggleConnection",
@@ -171,7 +159,7 @@ class MenuController {
         menu = newMenu
     }
     
-    @objc private func vpnConnectionToggled(_ sender: NSMenuItem) {
+    @objc func vpnConnectionToggled(_ sender: NSMenuItem) {
         guard let connectionID = sender.representedObject as? String else { return }
         vpnManager.toggleConnection(connectionID)
         
@@ -199,18 +187,21 @@ class MenuController {
     }
     
     @objc private func openNetworkPreferences(_ sender: NSMenuItem) {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.Network-Settings.extension") {
-            NSWorkspace.shared.open(url)
-        }
+        NSWorkspace.shared.open(AppConstants.URLs.networkPreferences)
     }
     
     private func observeConnections() {
-        vpnManager.$connections
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.updateMenu()
-            }
-            .store(in: &cancellables)
+        // Используем VPNManager напрямую для доступа к @Published
+        if let vpnManager = vpnManager as? VPNManager {
+            vpnManager.$connections
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    self?.updateMenu()
+                }
+                .store(in: &cancellables)
+        } else {
+            // Fallback: обновляем меню один раз
+            updateMenu()
+        }
     }
 }
-

@@ -11,7 +11,7 @@ protocol VPNManagerProtocol: ObservableObject {
     var hasActiveConnection: Bool { get }
     
     /// Последняя ошибка загрузки списка соединений.
-    var loadingError: String? { get }
+    var loadingError: VPNError? { get }
     
     /// Интервал обновления состояния соединений.
     var updateInterval: TimeInterval { get set }
@@ -21,8 +21,10 @@ protocol VPNManagerProtocol: ObservableObject {
     func loadConnections(forceReload: Bool)
     
     /// Инициирует подключение к указанному соединению.
-    /// - Parameter connectionID: Идентификатор соединения.
-    func connect(to connectionID: String)
+    /// - Parameters:
+    ///   - connectionID: Идентификатор соединения.
+    ///   - retryCount: Количество попыток подключения (по умолчанию 3).
+    func connect(to connectionID: String, retryCount: Int)
     
     /// Отключает указанное соединение.
     /// - Parameter connectionID: Идентификатор соединения.

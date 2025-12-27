@@ -15,6 +15,8 @@ class SettingsManager: SettingsManagerProtocol {
     private let showNotificationsKey = "showNotifications"
     private let showConnectionNameKey = "showConnectionName"
     private let launchAtLoginKey = "launchAtLogin"
+    private let soundFeedbackEnabledKey = "soundFeedbackEnabled"
+    private let lastUsedConnectionIDKey = "lastUsedConnectionID"
     
     private init() {}
     
@@ -25,7 +27,7 @@ class SettingsManager: SettingsManagerProtocol {
             return saved > 0 ? saved : AppConstants.defaultUpdateInterval
         }
         set {
-            let validated = max(AppConstants.minUpdateInterval, min(AppConstants.maxUpdateInterval, newValue))
+            let validated = newValue.clamped(to: AppConstants.minUpdateInterval...AppConstants.maxUpdateInterval)
             userDefaults.set(validated, forKey: updateIntervalKey)
             NotificationCenter.default.post(name: .updateIntervalDidChange, object: nil)
         }
@@ -96,6 +98,19 @@ class SettingsManager: SettingsManagerProtocol {
         }
     }
     
+    /// Флаг включения звуковой обратной связи.
+    var soundFeedbackEnabled: Bool {
+        get {
+            if userDefaults.object(forKey: soundFeedbackEnabledKey) == nil {
+                return true
+            }
+            return userDefaults.bool(forKey: soundFeedbackEnabledKey)
+        }
+        set {
+            userDefaults.set(newValue, forKey: soundFeedbackEnabledKey)
+        }
+    }
+    
     /// Признак автозапуска приложения при входе в систему.
     var launchAtLogin: Bool {
         get {
@@ -143,6 +158,20 @@ class SettingsManager: SettingsManagerProtocol {
     /// Упрощенный fallback для macOS 12, сохраняющий пожелание автозапуска.
     private func setLaunchAtLoginLegacy(enabled: Bool) {
         userDefaults.set(enabled, forKey: launchAtLoginKey)
+    }
+    
+    /// Идентификатор последнего использованного VPN-подключения.
+    var lastUsedConnectionID: String? {
+        get {
+            return userDefaults.string(forKey: lastUsedConnectionIDKey)
+        }
+        set {
+            if let value = newValue {
+                userDefaults.set(value, forKey: lastUsedConnectionIDKey)
+            } else {
+                userDefaults.removeObject(forKey: lastUsedConnectionIDKey)
+            }
+        }
     }
 }
 

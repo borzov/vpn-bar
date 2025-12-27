@@ -11,15 +11,21 @@ class StatusBarController {
     private let viewModel: StatusItemViewModel
     private var lastContent: StatusItemViewModel.ImageContent?
     private var cancellables = Set<AnyCancellable>()
-    private let vpnManager = VPNManager.shared
+    private let vpnManager: VPNManagerProtocol
+    private let settingsManager: SettingsManagerProtocol
     
     private var connectingAnimationTimer: Timer?
     private var animationFrame = 0
     
-    init() {
+    init(
+        vpnManager: VPNManagerProtocol = VPNManager.shared,
+        settingsManager: SettingsManagerProtocol = SettingsManager.shared
+    ) {
+        self.vpnManager = vpnManager
+        self.settingsManager = settingsManager
         viewModel = StatusItemViewModel(
-            vpnManager: VPNManager.shared,
-            settings: SettingsManager.shared
+            vpnManager: vpnManager,
+            settings: settingsManager
         )
         StatusBarController.shared = self
         setupStatusBar()
@@ -77,12 +83,13 @@ class StatusBarController {
         guard connectingAnimationTimer == nil else { return }
         
         animationFrame = 0
-        connectingAnimationTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: AppConstants.connectingAnimationInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.animateConnectingIcon()
             }
         }
-        RunLoop.current.add(connectingAnimationTimer!, forMode: .common)
+        connectingAnimationTimer = timer
+        RunLoop.current.add(timer, forMode: .common)
         
         animateConnectingIcon()
     }
@@ -163,18 +170,25 @@ class StatusBarController {
         let connections = vpnManager.connections
         let wasActive = vpnManager.hasActiveConnection
         var connectionName: String?
+        var targetConnectionID: String?
         
-        if let activeConnection = connections.first(where: { $0.status.isActive }) {
+        if let lastUsedID = settingsManager.lastUsedConnectionID,
+           let lastUsedConnection = connections.first(where: { $0.id == lastUsedID }) {
+            targetConnectionID = lastUsedID
+            connectionName = lastUsedConnection.name
+        } else if let activeConnection = connections.first(where: { $0.status.isActive }) {
+            targetConnectionID = activeConnection.id
             connectionName = activeConnection.name
-            vpnManager.toggleConnection(activeConnection.id)
         } else if let firstConnection = connections.first {
+            targetConnectionID = firstConnection.id
             connectionName = firstConnection.name
-            vpnManager.toggleConnection(firstConnection.id)
         }
         
-        let settings = SettingsManager.shared
+        if let connectionID = targetConnectionID {
+            vpnManager.toggleConnection(connectionID)
+        }
         
-        if settings.showNotifications {
+        if settingsManager.showNotifications {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 guard let self = self else { return }
                 let isNowActive = self.vpnManager.hasActiveConnection
@@ -208,4 +222,3 @@ class StatusBarController {
     }
 
 }
-

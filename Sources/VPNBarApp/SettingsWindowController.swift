@@ -22,11 +22,15 @@ class SettingsWindowController {
     private var localEventMonitor: Any?
     private var clearHotkeyButton: NSButton?
     private var cancellables = Set<AnyCancellable>()
-    private let vpnManager = VPNManager.shared
-    private let settingsManager = SettingsManager.shared
-    private let repositoryURL = URL(string: "https://github.com/borzov/VPNBarApp")
+    private let vpnManager: VPNManagerProtocol
+    private let settingsManager: SettingsManagerProtocol
     
-    private init() {
+    init(
+        vpnManager: VPNManagerProtocol = VPNManager.shared,
+        settingsManager: SettingsManagerProtocol = SettingsManager.shared
+    ) {
+        self.vpnManager = vpnManager
+        self.settingsManager = settingsManager
         createWindow()
     }
     
@@ -181,8 +185,8 @@ class SettingsWindowController {
 
         // Степпер
         let stepper = NSStepper()
-        stepper.minValue = 5
-        stepper.maxValue = 60
+        stepper.minValue = AppConstants.minUpdateInterval
+        stepper.maxValue = AppConstants.maxUpdateInterval
         stepper.increment = 1
         stepper.integerValue = Int(settingsManager.updateInterval)
         stepper.target = self
@@ -263,6 +267,31 @@ class SettingsWindowController {
         description.textColor = .secondaryLabelColor
         description.preferredMaxLayoutWidth = 524
         sectionStack.addArrangedSubview(description)
+        
+        // Чекбокс для звуковой обратной связи
+        let soundCheckbox = NSButton(
+            checkboxWithTitle: NSLocalizedString(
+                "settings.notifications.soundFeedback",
+                comment: "Toggle to enable sound feedback"
+            ),
+            target: self,
+            action: #selector(soundFeedbackChanged(_:))
+        )
+        soundCheckbox.state = SettingsManager.shared.soundFeedbackEnabled ? .on : .off
+        soundCheckbox.font = NSFont.systemFont(ofSize: 13)
+        sectionStack.addArrangedSubview(soundCheckbox)
+        
+        // Описание для звуковой обратной связи
+        let soundDescription = NSTextField(
+            wrappingLabelWithString: NSLocalizedString(
+                "settings.notifications.soundFeedbackDescription",
+                comment: "Description for sound feedback toggle"
+            )
+        )
+        soundDescription.font = NSFont.systemFont(ofSize: 11)
+        soundDescription.textColor = .secondaryLabelColor
+        soundDescription.preferredMaxLayoutWidth = 524
+        sectionStack.addArrangedSubview(soundDescription)
         
         return sectionStack
     }
@@ -509,15 +538,20 @@ class SettingsWindowController {
     }
     
     @objc private func showNotificationsChanged(_ sender: NSButton) {
-        settingsManager.showNotifications = sender.state == .on
+        SettingsManager.shared.showNotifications = sender.state == .on
+    }
+    
+    @objc private func soundFeedbackChanged(_ sender: NSButton) {
+        SettingsManager.shared.soundFeedbackEnabled = sender.state == .on
     }
     
     @objc private func showConnectionNameChanged(_ sender: NSButton) {
-        settingsManager.showConnectionName = sender.state == .on
+        SettingsManager.shared.showConnectionName = sender.state == .on
     }
     
     @objc private func launchAtLoginChanged(_ sender: NSButton) {
-        settingsManager.launchAtLogin = sender.state == .on
+        // Используем SettingsManager.shared напрямую для изменения свойств
+        SettingsManager.shared.launchAtLogin = sender.state == .on
     }
     
     @objc private func recordHotkey(_ sender: NSButton) {
@@ -559,7 +593,7 @@ class SettingsWindowController {
             let keyCode = UInt32(event.keyCode)
             
             // Escape отменяет запись
-            if keyCode == 53 { // Escape key
+            if keyCode == KeyCode.escape.rawValue {
                 stopRecordingHotkey()
                 // Восстанавливаем предыдущее значение
                 if let button = hotkeyButton {
@@ -748,21 +782,7 @@ class SettingsWindowController {
     }
     
     private func keyCodeToString(_ keyCode: UInt32) -> String? {
-        // Базовые клавиши
-        let keyMap: [UInt32: String] = [
-            0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G",
-            6: "Z", 7: "X", 8: "C", 9: "V", 11: "B", 12: "Q",
-            13: "W", 14: "E", 15: "R", 16: "Y", 17: "T",
-            31: "O", 32: "U", 34: "I", 35: "P", 37: "L",
-            38: "J", 40: "K", 45: "N", 46: "M",
-            18: "1", 19: "2", 20: "3", 21: "4", 23: "5",
-            22: "6", 26: "7", 28: "8", 25: "9", 29: "0",
-            36: "↩", 48: "⇥", 49: "␣", 51: "⌫", 53: "⎋",
-            24: "=", 27: "-", 30: "]", 33: "[", 39: "'", 41: ";",
-            42: "\\", 43: ",", 44: "/", 47: "."
-        ]
-        
-        return keyMap[keyCode]
+        return KeyCode(rawValue: keyCode)?.stringValue
     }
     
     private func registerHotkey() {
@@ -824,12 +844,12 @@ class SettingsWindowController {
             return
         }
         
-        let validatedValue = max(5.0, min(60.0, text))
+        let validatedValue = text.clamped(to: AppConstants.minUpdateInterval...AppConstants.maxUpdateInterval)
         if validatedValue != text {
             sender.stringValue = String(format: "%.0f", validatedValue)
         }
         
-        settingsManager.updateInterval = validatedValue
+        // Используем VPNManager для обновления интервала, который обновит SettingsManager
         vpnManager.updateInterval = validatedValue
     }
     
@@ -878,6 +898,11 @@ class SettingsWindowController {
         let title = NSTextField(labelWithString: Bundle.main.appName)
         title.font = NSFont.systemFont(ofSize: 16, weight: .semibold)
 
+        let descriptionLabel = NSTextField(wrappingLabelWithString: NSLocalizedString("settings.about.description", comment: "About description"))
+        descriptionLabel.font = NSFont.systemFont(ofSize: 12)
+        descriptionLabel.textColor = .secondaryLabelColor
+        descriptionLabel.preferredMaxLayoutWidth = 520
+
         let versionString = Bundle.main.formattedVersion
         let versionLabel = NSTextField(labelWithString: String(
             format: NSLocalizedString("settings.about.version", comment: "App version label"),
@@ -890,18 +915,13 @@ class SettingsWindowController {
         authorLabel.font = NSFont.systemFont(ofSize: 12)
         authorLabel.textColor = .secondaryLabelColor
 
-        let descriptionLabel = NSTextField(wrappingLabelWithString: NSLocalizedString("settings.about.description", comment: "About description"))
-        descriptionLabel.font = NSFont.systemFont(ofSize: 12)
-        descriptionLabel.textColor = .secondaryLabelColor
-        descriptionLabel.preferredMaxLayoutWidth = 520
-
         let repoButton = NSButton()
         repoButton.title = NSLocalizedString("settings.about.repoButton", comment: "Open repository button")
         repoButton.bezelStyle = .rounded
         repoButton.target = self
         repoButton.action = #selector(openRepository(_:))
 
-        [title, versionLabel, authorLabel, descriptionLabel, repoButton].forEach { stack.addArrangedSubview($0) }
+        [title, descriptionLabel, versionLabel, authorLabel, repoButton].forEach { stack.addArrangedSubview($0) }
 
         contentView.addSubview(stack)
 
@@ -916,8 +936,7 @@ class SettingsWindowController {
     }
 
     @objc private func openRepository(_ sender: Any) {
-        guard let url = repositoryURL else { return }
-        NSWorkspace.shared.open(url)
+        NSWorkspace.shared.open(AppConstants.URLs.repository)
     }
 
     private func makeDivider() -> NSView {
@@ -926,19 +945,5 @@ class SettingsWindowController {
         box.translatesAutoresizingMaskIntoConstraints = false
         box.heightAnchor.constraint(equalToConstant: 1).isActive = true
         return box
-    }
-}
-
-private extension Bundle {
-    var appName: String {
-        object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
-            ?? object(forInfoDictionaryKey: "CFBundleName") as? String
-            ?? "VPN Bar"
-    }
-
-    var formattedVersion: String {
-        let short = object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
-        let build = object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
-        return build.isEmpty ? short : "\(short) (\(build))"
     }
 }

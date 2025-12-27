@@ -47,5 +47,18 @@ final class MenuControllerTests: XCTestCase {
         
         XCTAssertTrue(true)
     }
+    
+    func test_vpnConnectionToggled_callsToggleConnection() {
+        sut = MenuController(vpnManager: mockVPNManager)
+        let connection = VPNConnectionFactory.createDisconnected()
+        mockVPNManager.connections = [connection]
+        
+        let menuItem = NSMenuItem()
+        menuItem.representedObject = connection.id
+        sut.vpnConnectionToggled(menuItem)
+        
+        XCTAssertTrue(mockVPNManager.toggleConnectionCalled)
+        XCTAssertEqual(mockVPNManager.toggleConnectionID, connection.id)
+    }
 }
 

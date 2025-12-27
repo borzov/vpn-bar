@@ -1,7 +1,7 @@
 import Foundation
 @testable import VPNBarApp
 
-final class MockHotkeyManager {
+final class MockHotkeyManager: HotkeyManagerProtocol {
     var isRegistered = false
     var registeredKeyCode: UInt32?
     var registeredModifiers: UInt32?
@@ -28,6 +28,10 @@ final class MockHotkeyManager {
     
     func simulateHotkeyPress() {
         callback?()
+    }
+    
+    func cleanup() {
+        unregisterHotkey()
     }
     
     func reset() {

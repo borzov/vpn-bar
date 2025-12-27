@@ -14,7 +14,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         
         statusBarController = StatusBarController()
-        VPNManager.shared.loadConnections()
+        VPNManager.shared.loadConnections(forceReload: true)
         registerHotkeyFromSettings()
         
         NotificationCenter.default.addObserver(
@@ -42,6 +42,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationWillTerminate(_ notification: Notification) {
+        HotkeyManager.shared.cleanup()
+        // VPNManager cleanup будет выполнен автоматически при завершении приложения
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

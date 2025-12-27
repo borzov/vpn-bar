@@ -22,11 +22,11 @@ final class StatusItemViewModel {
     /// Текущее состояние, публикуемое для обновления UI.
     @Published private(set) var state: State
 
-    private let vpnManager: VPNManager
-    private let settings: SettingsManager
+    private let vpnManager: VPNManagerProtocol
+    private let settings: SettingsManagerProtocol
     private var cancellables = Set<AnyCancellable>()
 
-    init(vpnManager: VPNManager, settings: SettingsManager) {
+    init(vpnManager: VPNManagerProtocol, settings: SettingsManagerProtocol) {
         self.vpnManager = vpnManager
         self.settings = settings
 
@@ -40,16 +40,21 @@ final class StatusItemViewModel {
             .map { _ in () }
             .prepend(())
 
-        vpnManager.$connections
-            .combineLatest(showConnectionNameChange)
-            .map { connections, _ in
-                StatusItemViewModel.makeState(connections: connections, settings: settings)
-            }
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] newState in
-                self?.state = newState
-            }
-            .store(in: &cancellables)
+        if let observableVPNManager = vpnManager as? VPNManager {
+            observableVPNManager.$connections
+                .combineLatest(showConnectionNameChange)
+                .map { connections, _ in
+                    StatusItemViewModel.makeState(connections: connections, settings: settings)
+                }
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] newState in
+                    self?.state = newState
+                }
+                .store(in: &cancellables)
+        } else {
+            // Fallback для протокола без Combine
+            state = StatusItemViewModel.makeState(connections: vpnManager.connections, settings: settings)
+        }
     }
 
     /// Собирает состояние статус-бара на основе подключений и настроек.
@@ -59,7 +64,7 @@ final class StatusItemViewModel {
     /// - Returns: Итоговое состояние статус-бара.
     private static func makeState(
         connections: [VPNConnection],
-        settings: SettingsManager
+        settings: SettingsManagerProtocol
     ) -> State {
         let hasConnecting = connections.contains { $0.status == .connecting || $0.status == .disconnecting }
 

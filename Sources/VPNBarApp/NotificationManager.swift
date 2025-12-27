@@ -4,7 +4,7 @@ import os.log
 
 /// Управляет запросами и доставкой уведомлений о состоянии VPN.
 @MainActor
-class NotificationManager: NSObject, ObservableObject {
+class NotificationManager: NSObject, NotificationManagerProtocol {
     static let shared = NotificationManager()
     
     private let logger = Logger(subsystem: AppConstants.bundleIdentifier, category: "Notifications")

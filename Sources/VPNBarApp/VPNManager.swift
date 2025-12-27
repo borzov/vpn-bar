@@ -1,22 +1,34 @@
 import Foundation
 import SystemConfiguration
 import Darwin
+import os.log
 
 /// Менеджер VPN-соединений, отвечающий за загрузку конфигураций и управление сессиями.
 @MainActor
 class VPNManager: VPNManagerProtocol {
-    static let shared = VPNManager()
+    static let shared: VPNManager = {
+        let statusHandler: ((String, SCNetworkConnectionStatus) -> Void) = { connectionID, status in
+            Task { @MainActor in
+                VPNManager.shared.updateConnectionStatus(identifier: connectionID, newStatus: status)
+            }
+        }
+        return VPNManager(
+            configurationLoader: VPNConfigurationLoader(),
+            sessionManager: VPNSessionManager(statusUpdateHandler: statusHandler),
+            statusMonitor: nil
+        )
+    }()
     
     @Published var connections: [VPNConnection] = []
     @Published var hasActiveConnection: Bool = false
-    @Published var loadingError: String?
+    @Published var loadingError: VPNError?
     
-    private var sessions: [String: ne_session_t] = [:]
-    private var sessionStatuses: [String: SCNetworkConnectionStatus] = [:]
-    private let sessionQueue = DispatchQueue(label: "VPNBarApp.sessionQueue")
+    private let configurationLoader: VPNConfigurationLoaderProtocol
+    private let sessionManager: VPNSessionManagerProtocol
+    private let statusMonitor: VPNStatusMonitorProtocol
     private var updateTimer: Timer?
-    private var statusUpdateTimer: Timer?
-    private var networkExtensionFrameworkLoaded = false
+    private var connectionsReloadTimer: Timer?
+    private var loadTask: Task<Void, Never>?
     
     /// Интервал обновления списка соединений; при изменении перезапускает мониторинг.
     var updateInterval: TimeInterval {
@@ -32,302 +44,133 @@ class VPNManager: VPNManagerProtocol {
     private var lastStatusUpdate: Date = Date()
     private let statusUpdateInterval: TimeInterval = AppConstants.sessionStatusUpdateInterval
     
-    private init() {
+    init(
+        configurationLoader: VPNConfigurationLoaderProtocol? = nil,
+        sessionManager: VPNSessionManagerProtocol? = nil,
+        statusMonitor: VPNStatusMonitorProtocol? = nil
+    ) {
+        if let loader = configurationLoader {
+            self.configurationLoader = loader
+        } else {
+            self.configurationLoader = VPNConfigurationLoader()
+        }
+        
+        // Создаем sessionManager с обработчиком обновления статусов
+        var handler: ((String, SCNetworkConnectionStatus) -> Void)?
+        if sessionManager == nil {
+            handler = { connectionID, status in
+                Task { @MainActor in
+                    VPNManager.shared.updateConnectionStatus(identifier: connectionID, newStatus: status)
+                }
+            }
+        }
+        self.sessionManager = sessionManager ?? VPNSessionManager(statusUpdateHandler: handler)
+        
+        // Создаем statusMonitor с sessionManager
+        self.statusMonitor = statusMonitor ?? VPNStatusMonitor(sessionManager: self.sessionManager)
+        
         _ = updateInterval
         
-        loadConnections()
+        loadConnections(forceReload: true)
         startMonitoring()
+        startConnectionsReloadTimer()
     }
     
     deinit {
         updateTimer?.invalidate()
         updateTimer = nil
-        statusUpdateTimer?.invalidate()
-        statusUpdateTimer = nil
-        
-        for (_, session) in sessions {
-            ne_session_cancel(session)
-            ne_session_release(session)
-        }
-        sessions.removeAll()
+        connectionsReloadTimer?.invalidate()
+        connectionsReloadTimer = nil
+        // Note: deinit не может вызывать @MainActor методы синхронно
+        // Очистка будет выполнена при завершении приложения через AppDelegate
     }
     
     /// Загружает доступные VPN-конфигурации.
     /// - Parameter forceReload: Принудительно перезагружает даже при наличии кэша.
     func loadConnections(forceReload: Bool = false) {
-        loadingError = nil
+        loadTask?.cancel()
         
-        loadNetworkExtensionFrameworkIfNeeded()
-        
-        let managerClass: AnyClass? = NSClassFromString("NEConfigurationManager")
-        
-        guard let managerType = managerClass as? NSObject.Type else {
-            self.loadConnectionsAlternative()
-            return
-        }
-        
-        let sharedManagerSelector = NSSelectorFromString("sharedManager")
-        guard managerType.responds(to: sharedManagerSelector) else {
-            self.connections = []
-            self.updateActiveStatus()
-            return
-        }
-        
-        let sharedManagerResult = managerType.perform(sharedManagerSelector)
-        guard let manager = sharedManagerResult?.takeUnretainedValue() as? NSObject else {
-            self.connections = []
-            self.updateActiveStatus()
-            return
-        }
-        
-        let selector = NSSelectorFromString("loadConfigurationsWithCompletionQueue:handler:")
-        guard manager.responds(to: selector) else {
-            self.connections = []
-            self.updateActiveStatus()
-            return
-        }
-        
-        let handler: @convention(block) (NSArray?, NSError?) -> Void = { [weak self] configurations, error in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                
-                if error != nil {
-                    self.connections = []
-                    self.updateActiveStatus()
-                    return
-                }
-                
-                guard let nsArray = configurations as NSArray? else {
-                    self.connections = []
-                    self.updateActiveStatus()
-                    return
-                }
-                
-                var connections: [VPNConnection] = []
-                
-                for index in 0..<nsArray.count {
-                    guard let config = nsArray[index] as? NSObject else {
-                        continue
+        loadTask = Task { @MainActor in
+            guard !Task.isCancelled else { return }
+            
+            loadingError = nil
+            
+            configurationLoader.loadConfigurations { [weak self] result in
+                Task { @MainActor in
+                    guard let self = self, !Task.isCancelled else { return }
+                    
+                    switch result {
+                    case .success(let loadedConnections):
+                        self.processLoadedConnections(loadedConnections)
+                        
+                        let now = Date()
+                        if now.timeIntervalSince(self.lastStatusUpdate) >= self.statusUpdateInterval {
+                            self.lastStatusUpdate = now
+                            self.refreshAllStatuses()
+                        }
+                    case .failure(let error):
+                        self.handleLoadError(error)
                     }
-                    
-                    let name = config.value(forKey: "name") as? String
-                    let identifier = config.value(forKey: "identifier") as? NSUUID
-                    
-                    guard let name = name, let identifier = identifier else {
-                        continue
-                    }
-                    
-                    if name.hasPrefix("com.apple.preferences.") {
-                        continue
-                    }
-                    
-                    let identifierString = identifier.uuidString
-                    
-                    if self.sessions[identifierString] == nil {
-                        self.getOrCreateSession(for: identifier)
-                    }
-                    
-                    let status = self.getCachedConnectionStatus(for: identifierString)
-                    
-                    let connection = VPNConnection(
-                        id: identifierString,
-                        name: name,
-                        serviceID: identifierString,
-                        status: status
-                    )
-                    
-                    connections.append(connection)
-                }
-                
-                self.connections = connections.sorted { $0.name < $1.name }
-                
-                if self.connections.isEmpty {
-                    self.loadingError = NSLocalizedString(
-                        "error.vpn.noConfigurations",
-                        comment: "Shown when no VPN configurations are present"
-                    )
-                }
-                
-                self.updateActiveStatus()
-                
-                let now = Date()
-                if now.timeIntervalSince(self.lastStatusUpdate) >= self.statusUpdateInterval {
-                    self.lastStatusUpdate = now
-                    self.refreshAllStatuses()
                 }
             }
         }
-        
-        let block = unsafeBitCast(handler, to: AnyObject.self)
-        
-        let queue = self.sessionQueue
-        let imp = manager.method(for: selector)
-        
-        typealias MethodType = @convention(c) (AnyObject, Selector, DispatchQueue, AnyObject) -> Void
-        let method = unsafeBitCast(imp, to: MethodType.self)
-        method(manager, selector, queue, block)
-    }
-    
-    private func loadConnectionsAlternative() {
-        let frameworkPath = "/System/Library/Frameworks/NetworkExtension.framework/NetworkExtension"
-        guard let framework = dlopen(frameworkPath, RTLD_LAZY) else {
-            let error = String(cString: dlerror())
-            print(
-                String(
-                    format: NSLocalizedString(
-                        "error.vpn.loadFrameworkFailed",
-                        comment: "Error when NetworkExtension framework fails to load"
-                    ),
-                    error
-                )
-            )
-            self.connections = []
-            self.updateActiveStatus()
-            return
-        }
-        
-        defer { dlclose(framework) }
-        
-        guard let managerClass = NSClassFromString("NEConfigurationManager") as? NSObject.Type else {
-            if objc_getClass("NEConfigurationManager") != nil {
-                self.loadConnections()
-            } else {
-                self.connections = []
-                self.updateActiveStatus()
-            }
-            return
-        }
-        
-        self.loadConnectionsWithManagerClass(managerClass)
-    }
-    
-    private func loadConnectionsWithManagerClass(_ managerType: NSObject.Type) {
-        let sharedManagerSelector = NSSelectorFromString("sharedManager")
-        guard managerType.responds(to: sharedManagerSelector) else {
-            print(
-                NSLocalizedString(
-                    "error.vpn.sharedManagerUnavailable",
-                    comment: "Error when sharedManager selector is unavailable"
-                )
-            )
-            return
-        }
-        
-        let sharedManagerResult = managerType.perform(sharedManagerSelector)
-        guard let manager = sharedManagerResult?.takeUnretainedValue() as? NSObject else {
-            return
-        }
-        
-        let selector = NSSelectorFromString("loadConfigurationsWithCompletionQueue:handler:")
-        guard manager.responds(to: selector) else {
-            return
-        }
-        
-        let handler: @convention(block) (NSArray?, NSError?) -> Void = { [weak self] configurations, error in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                
-                if error != nil {
-                    self.connections = []
-                    self.updateActiveStatus()
-                    return
-                }
-                
-                guard let nsArray = configurations as NSArray? else {
-                    self.connections = []
-                    self.updateActiveStatus()
-                    return
-                }
-                
-                var connections: [VPNConnection] = []
-                
-                for index in 0..<nsArray.count {
-                    guard let config = nsArray[index] as? NSObject else {
-                        continue
-                    }
-                    
-                    let name = config.value(forKey: "name") as? String
-                    let identifier = config.value(forKey: "identifier") as? NSUUID
-                    
-                    guard let name = name, let identifier = identifier,
-                          !name.hasPrefix("com.apple.preferences.") else {
-                        continue
-                    }
-                    
-                    let identifierString = identifier.uuidString
-                    
-                    if self.sessions[identifierString] == nil {
-                        self.getOrCreateSession(for: identifier)
-                    }
-                    
-                    let status = self.getCachedConnectionStatus(for: identifierString)
-                    
-                    connections.append(VPNConnection(
-                        id: identifierString,
-                        name: name,
-                        serviceID: identifierString,
-                        status: status
-                    ))
-                }
-                
-                self.connections = connections.sorted { $0.name < $1.name }
-                
-                if self.connections.isEmpty {
-                    self.loadingError = NSLocalizedString(
-                        "error.vpn.noConfigurations",
-                        comment: "Shown when no VPN configurations are present"
-                    )
-                }
-                
-                self.updateActiveStatus()
-                self.refreshAllStatuses()
-            }
-        }
-        
-        let block = unsafeBitCast(handler, to: AnyObject.self)
-        let queue = self.sessionQueue
-        let imp = manager.method(for: selector)
-        typealias MethodType = @convention(c) (AnyObject, Selector, DispatchQueue, AnyObject) -> Void
-        let method = unsafeBitCast(imp, to: MethodType.self)
-        method(manager, selector, queue, block)
     }
     
     /// Подключает выбранное соединение.
-    /// - Parameter connectionID: Идентификатор соединения.
-    func connect(to connectionID: String) {
+    /// - Parameters:
+    ///   - connectionID: Идентификатор соединения.
+    ///   - retryCount: Количество попыток подключения (по умолчанию 3).
+    func connect(to connectionID: String, retryCount: Int = AppConstants.defaultRetryCount) {
+        connectWithRetry(to: connectionID, retryCount: retryCount, attempt: 1)
+    }
+    
+    private func connectWithRetry(to connectionID: String, retryCount: Int, attempt: Int) {
         guard connections.contains(where: { $0.id == connectionID }) else {
-            print(
-                String(
-                    format: NSLocalizedString(
-                        "error.vpn.connectionNotFound",
-                        comment: "Error when VPN connection ID is missing"
-                    ),
-                    connectionID
-                )
-            )
+            loadingError = .connectionNotFound(id: connectionID)
+            Logger.vpn.error("Connection not found: \(connectionID)")
             return
         }
         
-        guard let session = sessions[connectionID] else {
-            print(
-                String(
-                    format: NSLocalizedString(
-                        "error.vpn.sessionNotFoundCreating",
-                        comment: "Session missing; creating a new one"
-                    ),
-                    connectionID
-                )
-            )
-            if let uuid = UUID(uuidString: connectionID) {
-                let nsUUID = uuid as NSUUID
-                getOrCreateSession(for: nsUUID)
-                if let newSession = sessions[connectionID] {
-                    ne_session_start(newSession)
+        if sessionManager.hasSession(for: connectionID) {
+            do {
+                try sessionManager.startConnection(connectionID: connectionID)
+                updateConnectionToConnecting(connectionID: connectionID)
+            } catch {
+                Logger.vpn.error("Failed to start connection: \(error.localizedDescription)")
+                if attempt < retryCount {
+                    let delay = AppConstants.retryBaseDelay * pow(2.0, Double(attempt - 1))
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                        self.connectWithRetry(to: connectionID, retryCount: retryCount, attempt: attempt + 1)
+                    }
+                } else {
+                    loadingError = error as? VPNError ?? .connectionFailed(underlying: error.localizedDescription)
                 }
             }
-            return
+        } else {
+            if let uuid = UUID(uuidString: connectionID) {
+                let nsUUID = uuid as NSUUID
+                Task { @MainActor in
+                    await self.sessionManager.getOrCreateSession(for: nsUUID)
+                    if self.sessionManager.hasSession(for: connectionID) {
+                        do {
+                            try self.sessionManager.startConnection(connectionID: connectionID)
+                            self.updateConnectionToConnecting(connectionID: connectionID)
+                        } catch {
+                            self.handleConnectionFailure(connectionID: connectionID, retryCount: retryCount, attempt: attempt)
+                        }
+                    } else {
+                        self.handleConnectionFailure(connectionID: connectionID, retryCount: retryCount, attempt: attempt)
+                    }
+                }
+            } else {
+                loadingError = .sessionNotFound(id: connectionID)
+                Logger.vpn.error("Invalid UUID for connection: \(connectionID)")
+            }
         }
-        
+    }
+    
+    private func updateConnectionToConnecting(connectionID: String) {
         if let index = connections.firstIndex(where: { $0.id == connectionID }) {
             if connections[index].status != .connecting {
                 var updatedConnections = connections
@@ -337,42 +180,37 @@ class VPNManager: VPNManagerProtocol {
                 updateActiveStatus()
             }
         }
-        
-        ne_session_start(session)
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            if let session = self.sessions[connectionID] {
-                self.refreshSessionStatus(for: connectionID, session: session, updateConnections: true)
+    }
+    
+    
+    private func handleConnectionFailure(connectionID: String, retryCount: Int, attempt: Int) {
+        if attempt < retryCount {
+            let delay = AppConstants.retryBaseDelay * pow(2.0, Double(attempt - 1))
+            Logger.vpn.info("Session creation failed, retrying in \(delay) seconds...")
+            
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                self.connectWithRetry(to: connectionID, retryCount: retryCount, attempt: attempt + 1)
             }
+        } else {
+            Logger.vpn.error("Session creation failed after \(retryCount) attempts for: \(connectionID)")
+            loadingError = .sessionCreationFailed(id: connectionID)
         }
     }
+    
     
     /// Отключает выбранное соединение.
     /// - Parameter connectionID: Идентификатор соединения.
     func disconnect(from connectionID: String) {
+        Logger.vpn.info("Disconnecting from VPN: \(connectionID)")
         guard connections.contains(where: { $0.id == connectionID }) else {
-            print(
-                String(
-                    format: NSLocalizedString(
-                        "error.vpn.connectionNotFound",
-                        comment: "Error when VPN connection ID is missing"
-                    ),
-                    connectionID
-                )
-            )
+            loadingError = .connectionNotFound(id: connectionID)
+            Logger.vpn.error("Connection not found: \(connectionID)")
             return
         }
         
-        guard let session = sessions[connectionID] else {
-            print(
-                String(
-                    format: NSLocalizedString(
-                        "error.vpn.sessionNotFound",
-                        comment: "Session missing for connection"
-                    ),
-                    connectionID
-                )
-            )
+        guard sessionManager.hasSession(for: connectionID) else {
+            loadingError = .sessionNotFound(id: connectionID)
             return
         }
         
@@ -386,12 +224,54 @@ class VPNManager: VPNManagerProtocol {
             }
         }
         
-        ne_session_stop(session)
+        var timeoutTask: Task<Void, Never>?
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            if let session = self.sessions[connectionID] {
-                self.refreshSessionStatus(for: connectionID, session: session, updateConnections: true)
+        timeoutTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(AppConstants.connectionTimeout * 1_000_000_000))
+            if !Task.isCancelled {
+                Logger.vpn.error("Disconnection timeout for: \(connectionID)")
+                self.loadingError = .connectionFailed(underlying: "Disconnection timeout after \(AppConstants.connectionTimeout) seconds")
+                if let index = self.connections.firstIndex(where: { $0.id == connectionID }) {
+                    var updatedConnections = self.connections
+                    updatedConnections[index].status = .disconnected
+                    self.objectWillChange.send()
+                    self.connections = updatedConnections
+                    self.updateActiveStatus()
+                }
             }
+        }
+        
+        do {
+            try sessionManager.stopConnection(connectionID: connectionID)
+            
+            // Обновляем статус после отключения
+            sessionManager.getSessionStatus(connectionID: connectionID) { [weak self] status in
+                Task { @MainActor in
+                    guard let self = self else { return }
+                    timeoutTask?.cancel()
+                    timeoutTask = nil
+                    
+                    if status == .disconnected {
+                        Logger.vpn.info("Disconnected from VPN: \(connectionID)")
+                        SoundFeedbackManager.shared.play(.disconnection)
+                        StatisticsManager.shared.recordDisconnection()
+                        if let connection = self.connections.first(where: { $0.id == connectionID }) {
+                            ConnectionHistoryManager.shared.addEntry(
+                                connectionID: connectionID,
+                                connectionName: connection.name,
+                                action: .disconnected
+                            )
+                        }
+                    }
+                    self.updateConnectionStatus(identifier: connectionID, newStatus: status)
+                }
+            }
+        } catch {
+            timeoutTask?.cancel()
+            timeoutTask = nil
+            Logger.vpn.error("Disconnection failed: \(connectionID)")
+            loadingError = .connectionFailed(underlying: error.localizedDescription)
+            updateConnectionStatus(identifier: connectionID, newStatus: .disconnected)
         }
     }
     
@@ -402,10 +282,12 @@ class VPNManager: VPNManagerProtocol {
             return
         }
         
+        SettingsManager.shared.lastUsedConnectionID = connectionID
+        
         if connection.status.isActive {
             disconnect(from: connectionID)
         } else {
-            connect(to: connectionID)
+            connect(to: connectionID, retryCount: AppConstants.defaultRetryCount)
         }
     }
     
@@ -418,105 +300,13 @@ class VPNManager: VPNManagerProtocol {
         }
     }
 
-    private func loadNetworkExtensionFrameworkIfNeeded() {
-        if networkExtensionFrameworkLoaded {
-            return
-        }
-        
-        let possiblePaths = [
-            "/System/Library/Frameworks/NetworkExtension.framework/NetworkExtension",
-            "/System/Library/Frameworks/NetworkExtension.framework/Versions/A/NetworkExtension",
-            "/System/Library/Frameworks/NetworkExtension.framework"
-        ]
-        
-        var frameworkLoaded = false
-        for frameworkPath in possiblePaths {
-            if dlopen(frameworkPath, RTLD_LAZY | RTLD_GLOBAL) != nil {
-                frameworkLoaded = true
-                break
-            }
-        }
-        
-        if !frameworkLoaded {
-            if Bundle(identifier: "com.apple.NetworkExtension") != nil {
-                frameworkLoaded = true
-            }
-        }
-        
-        networkExtensionFrameworkLoaded = frameworkLoaded
-    }
-    
-    private nonisolated func getOrCreateSession(for uuid: NSUUID) {
-        let identifier = uuid.uuidString
-        
-        var uuidBytes: uuid_t = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-        uuid.getBytes(&uuidBytes)
-        
-        withUnsafePointer(to: &uuidBytes) { uuidPtr in
-            guard let session = ne_session_create(uuidPtr, NESessionTypeVPN) else {
-                print(
-                    String(
-                        format: NSLocalizedString(
-                            "error.vpn.sessionCreateFailed",
-                            comment: "Error when session creation fails"
-                        ),
-                        identifier
-                    )
-                )
-                return
-            }
-            
-            Task { @MainActor in
-                if self.sessions[identifier] == nil {
-                    self.sessions[identifier] = session
-                    
-                    ne_session_set_event_handler(session, self.sessionQueue) { event, eventData in
-                        Task { @MainActor in
-                            VPNManager.shared.refreshSessionStatus(for: identifier, session: session, updateConnections: true)
-                        }
-                    }
-                    
-                    self.refreshSessionStatus(for: identifier, session: session, updateConnections: false)
-                } else {
-                    ne_session_release(session)
-                }
-            }
-        }
-        
-    }
-    
-    private func refreshSessionStatus(for identifier: String, session: ne_session_t, updateConnections: Bool = false) {
-        ne_session_get_status(session, sessionQueue) { status in
-            Task { @MainActor in
-                let scStatus = SCNetworkConnectionGetStatusFromNEStatus(status)
-                let oldStatus = self.sessionStatuses[identifier]
-                self.sessionStatuses[identifier] = scStatus
-                
-                if oldStatus != scStatus || updateConnections {
-                    self.updateConnectionStatus(identifier: identifier, newStatus: scStatus)
-                }
-            }
-        }
-    }
     
     private func updateConnectionStatus(identifier: String, newStatus: SCNetworkConnectionStatus) {
         guard let index = connections.firstIndex(where: { $0.id == identifier }) else {
             return
         }
         
-        let vpnStatus: VPNConnection.VPNStatus
-        switch newStatus {
-        case .connected:
-            vpnStatus = .connected
-        case .connecting:
-            vpnStatus = .connecting
-        case .disconnecting:
-            vpnStatus = .disconnecting
-        case .disconnected, .invalid:
-            vpnStatus = .disconnected
-        @unknown default:
-            vpnStatus = .disconnected
-        }
+        let vpnStatus = convertToVPNStatus(from: newStatus)
         
         if connections[index].status != vpnStatus {
             var updatedConnections = connections
@@ -528,8 +318,11 @@ class VPNManager: VPNManagerProtocol {
     }
     
     private func getCachedConnectionStatus(for identifier: String) -> VPNConnection.VPNStatus {
-        let scStatus = sessionStatuses[identifier] ?? .invalid
-        
+        let scStatus = sessionManager.getCachedStatus(for: identifier)
+        return convertToVPNStatus(from: scStatus)
+    }
+    
+    private func convertToVPNStatus(from scStatus: SCNetworkConnectionStatus) -> VPNConnection.VPNStatus {
         switch scStatus {
         case .connected:
             return .connected
@@ -544,9 +337,53 @@ class VPNManager: VPNManagerProtocol {
         }
     }
     
+    private func processLoadedConnections(_ loadedConnections: [VPNConnection]) {
+        var processedConnections: [VPNConnection] = []
+        
+        for connection in loadedConnections {
+            let identifierString = connection.id
+            
+            if !sessionManager.hasSession(for: identifierString) {
+                if let uuid = UUID(uuidString: identifierString) {
+                    let nsUUID = uuid as NSUUID
+                    Task { @MainActor in
+                        await self.sessionManager.getOrCreateSession(for: nsUUID)
+                    }
+                }
+            }
+            
+            let status = getCachedConnectionStatus(for: identifierString)
+            
+            processedConnections.append(VPNConnection(
+                id: identifierString,
+                name: connection.name,
+                serviceID: identifierString,
+                status: status
+            ))
+        }
+        
+        connections = processedConnections.sorted { $0.name < $1.name }
+        
+        if connections.isEmpty {
+            loadingError = .noConfigurations
+        }
+        
+        updateActiveStatus()
+    }
+    
+    private func handleLoadError(_ error: VPNError) {
+        loadingError = error
+        connections = []
+        updateActiveStatus()
+    }
+    
     private func refreshAllStatuses() {
-        for (identifier, session) in sessions {
-            refreshSessionStatus(for: identifier, session: session, updateConnections: false)
+        for connection in connections {
+            sessionManager.getSessionStatus(connectionID: connection.id) { [weak self] status in
+                Task { @MainActor in
+                    self?.updateConnectionStatus(identifier: connection.id, newStatus: status)
+                }
+            }
         }
     }
     
@@ -562,12 +399,7 @@ class VPNManager: VPNManagerProtocol {
         }
         RunLoop.current.add(updateTimer!, forMode: .common)
         
-        statusUpdateTimer = Timer.scheduledTimer(withTimeInterval: statusUpdateInterval, repeats: true) { [weak self] _ in
-            DispatchQueue.main.async {
-                self?.refreshAllStatuses()
-            }
-        }
-        RunLoop.current.add(statusUpdateTimer!, forMode: .common)
+        statusMonitor.startMonitoring()
     }
     
     private func restartMonitoring() {
@@ -577,8 +409,18 @@ class VPNManager: VPNManagerProtocol {
     private func stopMonitoring() {
         updateTimer?.invalidate()
         updateTimer = nil
-        statusUpdateTimer?.invalidate()
-        statusUpdateTimer = nil
+        statusMonitor.stopMonitoring()
+    }
+    
+    private func startConnectionsReloadTimer() {
+        connectionsReloadTimer?.invalidate()
+        
+        connectionsReloadTimer = Timer.scheduledTimer(withTimeInterval: AppConstants.connectionsListReloadInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.loadConnections(forceReload: true)
+            }
+        }
+        RunLoop.current.add(connectionsReloadTimer!, forMode: .common)
     }
     
     private func updateActiveStatus() {

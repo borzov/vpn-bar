@@ -1,8 +1,9 @@
 import AppKit
 import Carbon
+import os.log
 
 /// Управляет регистрацией и обработкой глобальных горячих клавиш.
-class HotkeyManager {
+class HotkeyManager: HotkeyManagerProtocol {
     static let shared = HotkeyManager()
     
     private var hotKeyRef: EventHotKeyRef?
@@ -99,8 +100,10 @@ class HotkeyManager {
         if status == noErr, let ref = hotKeyRef {
             self.hotKeyRef = ref
             self.isRegistered = true
+            Logger.hotkey.info("Hotkey registered: keyCode=\(keyCode), modifiers=\(modifiers)")
         } else {
             self.callback = nil
+            Logger.hotkey.error("Failed to register hotkey: status=\(status)")
         }
     }
     
@@ -114,7 +117,9 @@ class HotkeyManager {
         callback = nil
     }
     
-    deinit {
+    /// Явно очищает все ресурсы. Должен вызываться при завершении приложения.
+    func cleanup() {
+        Logger.hotkey.info("Cleaning up hotkey manager")
         unregisterHotkey()
         
         if let handler = eventHandler {

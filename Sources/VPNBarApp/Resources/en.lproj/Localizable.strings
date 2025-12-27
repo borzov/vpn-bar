@@ -41,6 +41,8 @@
 "settings.notifications.title" = "Notifications";
 "settings.notifications.toggle" = "Show notifications when VPN connects or disconnects";
 "settings.notifications.description" = "Display system notifications on connect/disconnect.";
+"settings.notifications.soundFeedback" = "Sound feedback";
+"settings.notifications.soundFeedbackDescription" = "Play sounds when connecting, disconnecting, or when connection fails.";
 "settings.display.title" = "Display";
 "settings.display.showName" = "Show connection name in tooltip";
 "settings.display.description" = "Show the VPN name in the status tooltip.";
@@ -68,4 +70,5 @@
 "error.vpn.sessionNotFoundCreating" = "VPN session not found for %@, creating...";
 "error.vpn.sessionNotFound" = "VPN session not found for %@";
 "error.vpn.sessionCreateFailed" = "Error creating session for %@";
+"error.vpn.connectionFailed" = "VPN connection failed";
 

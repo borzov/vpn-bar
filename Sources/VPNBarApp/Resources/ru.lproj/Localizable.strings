@@ -41,6 +41,8 @@
 "settings.notifications.title" = "Уведомления";
 "settings.notifications.toggle" = "Показывать уведомления при подключении или отключении VPN";
 "settings.notifications.description" = "Показывать системные уведомления при подключении/отключении.";
+"settings.notifications.soundFeedback" = "Звуковая обратная связь";
+"settings.notifications.soundFeedbackDescription" = "Воспроизводить звуки при подключении, отключении или при ошибке подключения.";
 "settings.display.title" = "Отображение";
 "settings.display.showName" = "Показывать имя подключения во всплывающей подсказке";
 "settings.display.description" = "Показывать имя VPN во всплывающей подсказке.";
@@ -68,4 +70,5 @@
 "error.vpn.sessionNotFoundCreating" = "Сессия VPN не найдена для %@, создаем...";
 "error.vpn.sessionNotFound" = "Сессия VPN не найдена для %@";
 "error.vpn.sessionCreateFailed" = "Ошибка создания сессии для %@";
+"error.vpn.connectionFailed" = "Ошибка подключения VPN";
 

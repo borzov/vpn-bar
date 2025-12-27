@@ -1,0 +1,88 @@
+import Foundation
+
+/// Статистика использования VPN.
+struct VPNStatistics: Codable {
+    var totalConnections: Int = 0
+    var totalDisconnections: Int = 0
+    var totalConnectionTime: TimeInterval = 0
+    var lastConnectionDate: Date?
+    var lastDisconnectionDate: Date?
+    var longestSessionDuration: TimeInterval = 0
+    var shortestSessionDuration: TimeInterval = .infinity
+    
+    /// Средняя продолжительность сессии в секундах.
+    var averageSessionDuration: TimeInterval {
+        guard totalConnections > 0 else { return 0 }
+        return totalConnectionTime / Double(totalConnections)
+    }
+}
+
+/// Менеджер статистики использования VPN.
+@MainActor
+final class StatisticsManager {
+    static let shared = StatisticsManager()
+    
+    private let userDefaults = UserDefaults.standard
+    private let statisticsKey = "vpnStatistics"
+    private var currentSessionStart: Date?
+    private var statistics: VPNStatistics {
+        get {
+            guard let data = userDefaults.data(forKey: statisticsKey),
+                  let stats = try? JSONDecoder().decode(VPNStatistics.self, from: data) else {
+                return VPNStatistics()
+            }
+            return stats
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                userDefaults.set(data, forKey: statisticsKey)
+            }
+        }
+    }
+    
+    private init() {}
+    
+    /// Получает текущую статистику.
+    func getStatistics() -> VPNStatistics {
+        return statistics
+    }
+    
+    /// Записывает начало подключения.
+    func recordConnection() {
+        currentSessionStart = Date()
+        var stats = statistics
+        stats.totalConnections += 1
+        stats.lastConnectionDate = Date()
+        statistics = stats
+    }
+    
+    /// Записывает окончание подключения.
+    func recordDisconnection() {
+        guard let start = currentSessionStart else { return }
+        
+        let duration = Date().timeIntervalSince(start)
+        var stats = statistics
+        stats.totalDisconnections += 1
+        stats.totalConnectionTime += duration
+        stats.lastDisconnectionDate = Date()
+        
+        if duration > stats.longestSessionDuration {
+            stats.longestSessionDuration = duration
+        }
+        
+        if duration < stats.shortestSessionDuration || stats.shortestSessionDuration == .infinity {
+            stats.shortestSessionDuration = duration
+        }
+        
+        statistics = stats
+        currentSessionStart = nil
+    }
+    
+    /// Сбрасывает статистику.
+    func resetStatistics() {
+        statistics = VPNStatistics()
+        currentSessionStart = nil
+    }
+}
+
+

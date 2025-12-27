@@ -41,6 +41,8 @@
 "settings.notifications.title" = "通知";
 "settings.notifications.toggle" = "VPN 连接或断开时显示通知";
 "settings.notifications.description" = "在连接/断开时显示系统通知。";
+"settings.notifications.soundFeedback" = "声音反馈";
+"settings.notifications.soundFeedbackDescription" = "在连接、断开或连接失败时播放声音。";
 "settings.display.title" = "显示";
 "settings.display.showName" = "在提示中显示连接名称";
 "settings.display.description" = "在状态提示中显示 VPN 名称。";
@@ -68,3 +70,4 @@
 "error.vpn.sessionNotFoundCreating" = "未找到 %@ 的 VPN 会话，正在创建…";
 "error.vpn.sessionNotFound" = "未找到 %@ 的 VPN 会话";
 "error.vpn.sessionCreateFailed" = "创建 %@ 会话时出错";
+"error.vpn.connectionFailed" = "VPN 连接失败";

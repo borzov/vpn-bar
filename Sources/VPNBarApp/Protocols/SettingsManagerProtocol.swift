@@ -18,6 +18,9 @@ protocol SettingsManagerProtocol {
     /// Флаг показа имени подключения в тултипе.
     var showConnectionName: Bool { get set }
     
+    /// Флаг включения звуковой обратной связи.
+    var soundFeedbackEnabled: Bool { get set }
+    
     /// Признак автозапуска приложения при входе в систему.
     var launchAtLogin: Bool { get set }
     
@@ -29,5 +32,8 @@ protocol SettingsManagerProtocol {
     ///   - keyCode: Код клавиши.
     ///   - modifiers: Модификаторы клавиш.
     func saveHotkey(keyCode: UInt32?, modifiers: UInt32?)
+    
+    /// Идентификатор последнего использованного VPN-подключения.
+    var lastUsedConnectionID: String? { get set }
 }
 
