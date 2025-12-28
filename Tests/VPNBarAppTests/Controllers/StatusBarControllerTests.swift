@@ -44,12 +44,5 @@ final class StatusBarControllerTests: XCTestCase {
         XCTAssertTrue(true)
     }
     
-    func test_updateMenu_canBeCalled() {
-        sut = StatusBarController()
-        
-        sut.updateMenu()
-        
-        XCTAssertTrue(true)
-    }
 }
 

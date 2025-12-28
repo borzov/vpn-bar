@@ -33,5 +33,8 @@ protocol VPNSessionManagerProtocol {
     
     /// Возвращает список всех идентификаторов соединений, для которых есть сессии.
     var allConnectionIDs: [String] { get }
+    
+    /// Освобождает все ресурсы сессий при завершении приложения.
+    func cleanup()
 }
 

@@ -201,10 +201,6 @@ class StatusBarController {
         }
     }
     
-    func updateMenu() {
-        MenuController.shared.updateMenu()
-    }
-    
     deinit {
         connectingAnimationTimer?.invalidate()
         connectingAnimationTimer = nil

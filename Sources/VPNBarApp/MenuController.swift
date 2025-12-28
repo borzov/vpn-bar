@@ -6,6 +6,12 @@ import Combine
 class MenuController {
     static let shared = MenuController()
     
+    // MARK: - Cached Images
+    private static var cachedActiveImage: NSImage?
+    private static var cachedInactiveImage: NSImage?
+    private static var cachedErrorImage: NSImage?
+    private static var cachedDisconnectAllImage: NSImage?
+    
     private var menu: NSMenu?
     private var statusItem: NSStatusItem?
     private var cancellables = Set<AnyCancellable>()
@@ -51,10 +57,7 @@ class MenuController {
         if let error = vpnManager.loadingError {
             let errorItem = NSMenuItem(title: error.errorDescription ?? "", action: nil, keyEquivalent: "")
             errorItem.isEnabled = false
-            if let image = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil) {
-                image.isTemplate = true
-                errorItem.image = image
-            }
+            errorItem.image = MenuController.errorImage()
             newMenu.addItem(errorItem)
             
             let openNetworkPrefsItem = NSMenuItem(
@@ -89,15 +92,9 @@ class MenuController {
                 menuItem.representedObject = connection.id
                 
                 if connection.status.isActive {
-                    if let image = NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: nil) {
-                        image.isTemplate = true
-                        menuItem.image = image
-                    }
+                    menuItem.image = MenuController.activeImage()
                 } else {
-                    if let image = NSImage(systemSymbolName: "circle", accessibilityDescription: nil) {
-                        image.isTemplate = true
-                        menuItem.image = image
-                    }
+                    menuItem.image = MenuController.inactiveImage()
                 }
                 
                 var title = connection.name
@@ -131,10 +128,7 @@ class MenuController {
                 keyEquivalent: ""
             )
             disconnectAllItem.target = self
-            if let image = NSImage(systemSymbolName: "xmark.circle", accessibilityDescription: nil) {
-                image.isTemplate = true
-                disconnectAllItem.image = image
-            }
+            disconnectAllItem.image = MenuController.disconnectAllImage()
             newMenu.addItem(disconnectAllItem)
         }
         
@@ -201,5 +195,47 @@ class MenuController {
             // Fallback: обновляем меню один раз
             updateMenu()
         }
+    }
+    
+    // MARK: - Cached Image Helpers
+    
+    private static func activeImage() -> NSImage? {
+        if let cached = cachedActiveImage { return cached }
+        guard let image = NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: nil) else {
+            return nil
+        }
+        image.isTemplate = true
+        cachedActiveImage = image
+        return image
+    }
+    
+    private static func inactiveImage() -> NSImage? {
+        if let cached = cachedInactiveImage { return cached }
+        guard let image = NSImage(systemSymbolName: "circle", accessibilityDescription: nil) else {
+            return nil
+        }
+        image.isTemplate = true
+        cachedInactiveImage = image
+        return image
+    }
+    
+    private static func errorImage() -> NSImage? {
+        if let cached = cachedErrorImage { return cached }
+        guard let image = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil) else {
+            return nil
+        }
+        image.isTemplate = true
+        cachedErrorImage = image
+        return image
+    }
+    
+    private static func disconnectAllImage() -> NSImage? {
+        if let cached = cachedDisconnectAllImage { return cached }
+        guard let image = NSImage(systemSymbolName: "xmark.circle", accessibilityDescription: nil) else {
+            return nil
+        }
+        image.isTemplate = true
+        cachedDisconnectAllImage = image
+        return image
     }
 }

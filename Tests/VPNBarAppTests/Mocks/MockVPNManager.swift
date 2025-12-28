@@ -95,6 +95,10 @@ final class MockVPNManager: VPNManagerProtocol {
         }
     }
     
+    func cleanup() {
+        // Mock implementation - nothing to cleanup
+    }
+    
     private func updateActiveStatus() {
         hasActiveConnection = connections.contains { $0.status.isActive }
     }

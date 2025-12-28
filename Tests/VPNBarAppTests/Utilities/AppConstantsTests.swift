@@ -8,15 +8,11 @@ final class AppConstantsTests: XCTestCase {
     }
     
     func test_appName_isNotEmpty() {
-        XCTAssertFalse(AppConstants.appName.isEmpty)
+        XCTAssertFalse(Bundle.main.appName.isEmpty)
     }
     
-    func test_appVersion_isNotEmpty() {
-        XCTAssertFalse(AppConstants.appVersion.isEmpty)
-    }
-    
-    func test_buildNumber_isNotEmpty() {
-        XCTAssertFalse(AppConstants.buildNumber.isEmpty)
+    func test_formattedVersion_isNotEmpty() {
+        XCTAssertFalse(Bundle.main.formattedVersion.isEmpty)
     }
     
     func test_minUpdateInterval_isPositive() {

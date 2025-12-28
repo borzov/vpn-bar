@@ -21,7 +21,6 @@ class NotificationManager: NSObject, NotificationManagerProtocol {
     /// Для menu bar приложений использует provisional authorization
     func requestAuthorization() {
         let center = UNUserNotificationCenter.current()
-        center.delegate = self
         
         center.getNotificationSettings { [weak self] settings in
             guard let self = self else { return }
@@ -60,7 +59,6 @@ class NotificationManager: NSObject, NotificationManagerProtocol {
     /// Отправляет уведомление о подключении/отключении VPN
     func sendVPNNotification(isConnected: Bool, connectionName: String?) {
         let center = UNUserNotificationCenter.current()
-        center.delegate = self
         
         Task {
             let content = UNMutableNotificationContent()

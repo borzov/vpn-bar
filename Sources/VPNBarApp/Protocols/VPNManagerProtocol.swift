@@ -36,5 +36,8 @@ protocol VPNManagerProtocol: ObservableObject {
     
     /// Отключает все активные соединения.
     func disconnectAll()
+    
+    /// Освобождает ресурсы при завершении приложения.
+    func cleanup()
 }
 

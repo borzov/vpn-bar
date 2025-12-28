@@ -21,7 +21,7 @@ class SettingsWindowController {
     private var localEventMonitor: Any?
     private var clearHotkeyButton: NSButton?
     private let vpnManager: VPNManagerProtocol
-    private let settingsManager: SettingsManagerProtocol
+    private var settingsManager: SettingsManagerProtocol
     
     init(
         vpnManager: VPNManagerProtocol = VPNManager.shared,
@@ -274,7 +274,7 @@ class SettingsWindowController {
             target: self,
             action: #selector(soundFeedbackChanged(_:))
         )
-        soundCheckbox.state = SettingsManager.shared.soundFeedbackEnabled ? .on : .off
+        soundCheckbox.state = settingsManager.soundFeedbackEnabled ? .on : .off
         soundCheckbox.font = NSFont.systemFont(ofSize: 13)
         sectionStack.addArrangedSubview(soundCheckbox)
         
@@ -535,28 +535,19 @@ class SettingsWindowController {
     }
     
     @objc private func showNotificationsChanged(_ sender: NSButton) {
-        SettingsManager.shared.showNotifications = sender.state == .on
+        settingsManager.showNotifications = sender.state == .on
     }
     
     @objc private func soundFeedbackChanged(_ sender: NSButton) {
-        SettingsManager.shared.soundFeedbackEnabled = sender.state == .on
+        settingsManager.soundFeedbackEnabled = sender.state == .on
     }
     
     @objc private func showConnectionNameChanged(_ sender: NSButton) {
-        SettingsManager.shared.showConnectionName = sender.state == .on
+        settingsManager.showConnectionName = sender.state == .on
     }
     
     @objc private func launchAtLoginChanged(_ sender: NSButton) {
-        // Используем SettingsManager.shared напрямую для изменения свойств
-        SettingsManager.shared.launchAtLogin = sender.state == .on
-    }
-    
-    @objc private func recordHotkey(_ sender: NSButton) {
-        if isRecordingHotkey {
-            stopRecordingHotkey()
-        } else {
-            startRecordingHotkey()
-        }
+        settingsManager.launchAtLogin = sender.state == .on
     }
     
     private func startRecordingHotkey() {

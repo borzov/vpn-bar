@@ -43,7 +43,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationWillTerminate(_ notification: Notification) {
         HotkeyManager.shared.cleanup()
-        // VPNManager cleanup будет выполнен автоматически при завершении приложения
+        Task { @MainActor in
+            VPNManager.shared.cleanup()
+        }
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

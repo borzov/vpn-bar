@@ -6,15 +6,12 @@ import AudioToolbox
 /// Типы звуковой обратной связи.
 enum SoundFeedback {
     case connectionSuccess
-    case connectionFailure
     case disconnection
     
     var systemSoundID: SystemSoundID {
         switch self {
         case .connectionSuccess:
             return 1000 // Glass
-        case .connectionFailure:
-            return 1052 // Basso
         case .disconnection:
             return 1003 // Pop
         }

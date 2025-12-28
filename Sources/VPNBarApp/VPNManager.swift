@@ -14,8 +14,7 @@ class VPNManager: VPNManagerProtocol {
         }
         return VPNManager(
             configurationLoader: VPNConfigurationLoader(),
-            sessionManager: VPNSessionManager(statusUpdateHandler: statusHandler),
-            statusMonitor: nil
+            sessionManager: VPNSessionManager(statusUpdateHandler: statusHandler)
         )
     }()
     
@@ -25,7 +24,6 @@ class VPNManager: VPNManagerProtocol {
     
     private let configurationLoader: VPNConfigurationLoaderProtocol
     private let sessionManager: VPNSessionManagerProtocol
-    private let statusMonitor: VPNStatusMonitorProtocol?
     private var updateTimer: Timer?
     private var loadTask: Task<Void, Never>?
     
@@ -47,8 +45,7 @@ class VPNManager: VPNManagerProtocol {
     
     init(
         configurationLoader: VPNConfigurationLoaderProtocol? = nil,
-        sessionManager: VPNSessionManagerProtocol? = nil,
-        statusMonitor: VPNStatusMonitorProtocol? = nil
+        sessionManager: VPNSessionManagerProtocol? = nil
     ) {
         if let loader = configurationLoader {
             self.configurationLoader = loader
@@ -66,9 +63,6 @@ class VPNManager: VPNManagerProtocol {
             }
         }
         self.sessionManager = sessionManager ?? VPNSessionManager(statusUpdateHandler: handler)
-        
-        // statusMonitor используется только для тестирования
-        self.statusMonitor = statusMonitor
         
         _ = updateInterval
         
@@ -178,7 +172,6 @@ class VPNManager: VPNManagerProtocol {
             if connections[index].status != .connecting {
                 var updatedConnections = connections
                 updatedConnections[index].status = .connecting
-                objectWillChange.send()
                 connections = updatedConnections
                 updateActiveStatus()
             }
@@ -221,7 +214,6 @@ class VPNManager: VPNManagerProtocol {
             if connections[index].status != .disconnecting {
                 var updatedConnections = connections
                 updatedConnections[index].status = .disconnecting
-                objectWillChange.send()
                 connections = updatedConnections
                 updateActiveStatus()
             }
@@ -237,7 +229,6 @@ class VPNManager: VPNManagerProtocol {
                 if let index = self.connections.firstIndex(where: { $0.id == connectionID }) {
                     var updatedConnections = self.connections
                     updatedConnections[index].status = .disconnected
-                    self.objectWillChange.send()
                     self.connections = updatedConnections
                     self.updateActiveStatus()
                 }
@@ -315,11 +306,11 @@ class VPNManager: VPNManagerProtocol {
         if oldStatus != vpnStatus {
             var updatedConnections = connections
             updatedConnections[index].status = vpnStatus
-            objectWillChange.send()
             connections = updatedConnections
             updateActiveStatus()
             
             if oldStatus != .connected && vpnStatus == .connected {
+                SoundFeedbackManager.shared.play(.connectionSuccess)
                 StatisticsManager.shared.recordConnection()
                 if let connection = connections.first(where: { $0.id == identifier }) {
                     ConnectionHistoryManager.shared.addEntry(
@@ -430,6 +421,12 @@ class VPNManager: VPNManagerProtocol {
     
     private func updateActiveStatus() {
         hasActiveConnection = connections.contains { $0.status.isActive }
+    }
+    
+    /// Освобождает ресурсы при завершении приложения.
+    func cleanup() {
+        stopMonitoring()
+        sessionManager.cleanup()
     }
 }
 
