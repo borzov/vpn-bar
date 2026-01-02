@@ -11,5 +11,17 @@ cask "vpn-bar" do
 
   app "VPNBarApp.app"
 
+  postflight do
+    system_command "/usr/bin/xattr",
+                   args: ["-cr", "#{appdir}/VPNBarApp.app"],
+                   sudo: false
+  end
+
+  caveats <<~EOS
+    This app is not signed with an Apple Developer certificate.
+    If you see "damaged" error on first launch, run:
+      sudo xattr -cr /Applications/VPNBarApp.app
+  EOS
+
   zap trash: "~/Library/Preferences/com.borzov.VPNBar.plist"
 end
