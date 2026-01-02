@@ -46,7 +46,25 @@ VPN Bar is a native macOS application that lives in the menu bar and provides qu
 
 ## Installation
 
-1. Download the latest version from [Releases](https://github.com/borzov/vpn-bar/releases)
+### Using Homebrew (Recommended)
+
+The easiest way to install VPN Bar is via [Homebrew](https://brew.sh/):
+
+```bash
+brew tap borzov/vpnbarapp https://github.com/borzov/VPNBarApp
+brew install --cask vpn-bar
+```
+
+This method automatically handles macOS security (Gatekeeper) — no manual steps required.
+
+To update:
+```bash
+brew upgrade --cask vpn-bar
+```
+
+### Manual Installation
+
+1. Download the latest version from [Releases](https://github.com/borzov/VPNBarApp/releases)
 2. Extract the `VPNBarApp.zip` archive
 3. Drag `VPNBarApp.app` to your Applications folder
 4. Launch the application from Applications
@@ -57,7 +75,7 @@ VPN Bar is a native macOS application that lives in the menu bar and provides qu
 
 **Note:** If macOS shows a security warning, open **System Settings** → **Privacy & Security** and click **Open Anyway** next to the message about the app.
 
-### Bypassing macOS Quarantine
+### Bypassing macOS Quarantine (Manual Installation Only)
 
 If the app is blocked by macOS security (Gatekeeper), follow these steps:
 
@@ -132,12 +150,12 @@ swift build -c release
 
 ### Creating a Release
 
-Releases are created automatically when pushing a tag in the `v*` format (e.g., `v0.2.0`):
+Releases are created automatically when pushing a tag in the `v*` format (e.g., `v0.5.2`):
 
 ```bash
 # After finishing work on a version
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.5.2
+git push origin v0.5.2
 ```
 
 GitHub Actions will automatically:
