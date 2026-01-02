@@ -34,7 +34,7 @@ enum AppConstants {
     
     /// URL-адреса, используемые в приложении.
     enum URLs {
-        static let repository = URL(string: "https://github.com/borzov/VPNBarApp")!
+        static let repository = URL(string: "https://github.com/borzov/vpn-bar")!
         static let networkPreferences = URL(string: "x-apple.systempreferences:com.apple.Network-Settings.extension")!
     }
 }

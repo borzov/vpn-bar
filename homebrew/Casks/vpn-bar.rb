@@ -1,11 +1,11 @@
 cask "vpn-bar" do
-  version "0.5.2"
+  version "0.5.3"
   sha256 "SHA256_PLACEHOLDER"
 
-  url "https://github.com/borzov/VPNBarApp/releases/download/v#{version}/VPNBarApp.zip"
+  url "https://github.com/borzov/vpn-bar/releases/download/v#{version}/VPNBarApp.zip"
   name "VPN Bar"
   desc "Menu bar app for managing VPN connections on macOS"
-  homepage "https://github.com/borzov/VPNBarApp"
+  homepage "https://github.com/borzov/vpn-bar"
 
   depends_on macos: ">= :monterey"
 
