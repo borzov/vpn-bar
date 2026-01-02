@@ -46,20 +46,24 @@ VPN Bar is a native macOS application that lives in the menu bar and provides qu
 
 ## Installation
 
-### Using Homebrew (Recommended)
+### Using Homebrew
 
-The easiest way to install VPN Bar is via [Homebrew](https://brew.sh/):
+Install VPN Bar via [Homebrew](https://brew.sh/):
 
 ```bash
 brew tap borzov/vpn-bar https://github.com/borzov/vpn-bar
 brew install --cask vpn-bar
 ```
 
-This method automatically handles macOS security (Gatekeeper) — no manual steps required.
-
 To update:
 ```bash
 brew upgrade --cask vpn-bar
+```
+
+**Note:** Since this app is not signed with an Apple Developer certificate, you may need to run the following command after installation if you see a "damaged app" error:
+
+```bash
+sudo xattr -cr /Applications/VPNBarApp.app
 ```
 
 ### Manual Installation
@@ -75,7 +79,7 @@ brew upgrade --cask vpn-bar
 
 **Note:** If macOS shows a security warning, open **System Settings** → **Privacy & Security** and click **Open Anyway** next to the message about the app.
 
-### Bypassing macOS Quarantine (Manual Installation Only)
+### Bypassing macOS Gatekeeper
 
 If the app is blocked by macOS security (Gatekeeper), follow these steps:
 
