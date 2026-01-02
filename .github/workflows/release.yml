@@ -106,19 +106,19 @@ jobs:
         SHA256=${{ steps.sha256.outputs.sha256 }}
         
         # Update version in Cask
-        sed -i '' "s/version \".*\"/version \"$VERSION\"/" homebrew/Casks/vpn-bar.rb
+        sed -i '' "s/version \".*\"/version \"$VERSION\"/" Casks/vpn-bar.rb
         
         # Update SHA256 in Cask
-        sed -i '' "s/sha256 \".*\"/sha256 \"$SHA256\"/" homebrew/Casks/vpn-bar.rb
+        sed -i '' "s/sha256 \".*\"/sha256 \"$SHA256\"/" Casks/vpn-bar.rb
         
         echo "Updated Cask formula:"
-        cat homebrew/Casks/vpn-bar.rb
+        cat Casks/vpn-bar.rb
         
     - name: Commit Cask update
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
-        git add homebrew/Casks/vpn-bar.rb
+        git add Casks/vpn-bar.rb
         git commit -m "chore: update Homebrew Cask to v${{ steps.get_version.outputs.version }}" || echo "No changes to commit"
         git push origin HEAD:main || echo "Could not push to main"
 
