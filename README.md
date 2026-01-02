@@ -1,147 +1,147 @@
 # VPN Bar
 
-Легкое и удобное меню-бар приложение для macOS, которое позволяет быстро управлять VPN-подключениями прямо из строки меню.
+A lightweight and convenient menu bar application for macOS that allows you to quickly manage VPN connections directly from the menu bar.
 
-## Описание
+## Description
 
-VPN Bar — это нативное приложение для macOS, которое отображается в строке меню и предоставляет быстрый доступ к управлению VPN-подключениями. Приложение автоматически обнаруживает все настроенные VPN-подключения в системе и позволяет подключать или отключать их одним кликом.
+VPN Bar is a native macOS application that lives in the menu bar and provides quick access to VPN connection management. The app automatically detects all configured VPN connections on your system and allows you to connect or disconnect with a single click.
 
-## Скриншоты
+## Screenshots
 
 <table>
 <tr>
 <td align="center">
 <a href="Files/screen-1.png" target="_blank">
-<img src="Files/screen-1.png" alt="Скриншот 1" width="300"/>
+<img src="Files/screen-1.png" alt="Screenshot 1" width="300"/>
 </a>
 </td>
 <td align="center">
 <a href="Files/screen-2.png" target="_blank">
-<img src="Files/screen-2.png" alt="Скриншот 2" width="300"/>
+<img src="Files/screen-2.png" alt="Screenshot 2" width="300"/>
 </a>
 </td>
 <td align="center">
 <a href="Files/screen-3.png" target="_blank">
-<img src="Files/screen-3.png" alt="Скриншот 3" width="300"/>
+<img src="Files/screen-3.png" alt="Screenshot 3" width="300"/>
 </a>
 </td>
 </tr>
 </table>
 
-*Нажмите на изображение для просмотра в полном размере*
+*Click on an image to view full size*
 
-## Основные возможности
+## Key Features
 
-- **Индикация статуса VPN** — иконка в строке меню показывает, есть ли активное VPN-подключение
-  - Полупрозрачная серая иконка при отсутствии активного подключения
-  - Цветная иконка со щитом при активном VPN-подключении
-- **Быстрое переключение** — левый клик по иконке переключает активное VPN-подключение
-- **Глобальные горячие клавиши** — настраиваемая комбинация клавиш для переключения VPN из любого приложения
-- **Уведомления** — системные уведомления при подключении или отключении VPN
-- **Удобное меню** — правый клик открывает меню со списком всех доступных VPN-подключений
-- **Визуальная индикация** — каждый VPN в меню отображается с иконкой статуса (подключен/отключен)
-- **Гибкие настройки** — настройка интервала обновления, уведомлений и отображения
-- **Мультиязычность** — поддержка русского, английского и китайского (упрощенный) языков
-- **Легковесность** — минимальное потребление ресурсов системы
+- **VPN Status Indication** — the menu bar icon shows whether there's an active VPN connection
+  - Semi-transparent gray icon when no connection is active
+  - Colored shield icon when VPN is connected
+- **Quick Toggle** — left-click the icon to toggle the active VPN connection
+- **Global Hotkeys** — configurable keyboard shortcut to toggle VPN from any application
+- **Notifications** — system notifications when VPN connects or disconnects
+- **Convenient Menu** — right-click opens a menu with all available VPN connections
+- **Visual Indicators** — each VPN in the menu displays a status icon (connected/disconnected)
+- **Flexible Settings** — configure refresh interval, notifications, and display options
+- **Multilingual** — supports English, Russian, and Chinese (Simplified)
+- **Lightweight** — minimal system resource usage
 
-## Установка
+## Installation
 
-1. Скачайте последнюю версию приложения из [Releases](https://github.com/borzov/vpn-bar/releases)
-2. Распакуйте архив `VPNBarApp.zip`
-3. Перетащите `VPNBarApp.app` в папку `Программы` (Applications)
-4. Запустите приложение из папки `Программы`
+1. Download the latest version from [Releases](https://github.com/borzov/vpn-bar/releases)
+2. Extract the `VPNBarApp.zip` archive
+3. Drag `VPNBarApp.app` to your Applications folder
+4. Launch the application from Applications
 
-**Примечание:** Техническое имя приложения остается `VPNBarApp.app`, но в системе оно отображается как "VPN Bar".
+**Note:** The technical name remains `VPNBarApp.app`, but it displays as "VPN Bar" in the system.
 
-**Примечание:** При первом запуске macOS может запросить разрешение на доступ к сетевому расширению. Разрешите доступ для корректной работы приложения.
+**Note:** On first launch, macOS may request permission to access the network extension. Allow access for the app to work correctly.
 
-**Примечание:** Если macOS показывает предупреждение о безопасности, откройте **Системные настройки** → **Конфиденциальность и безопасность** и нажмите **Открыть в любом случае** рядом с сообщением о приложении.
+**Note:** If macOS shows a security warning, open **System Settings** → **Privacy & Security** and click **Open Anyway** next to the message about the app.
 
-### Обход карантина macOS
+### Bypassing macOS Quarantine
 
-Если приложение заблокировано системой безопасности macOS (Gatekeeper), выполните следующие действия:
+If the app is blocked by macOS security (Gatekeeper), follow these steps:
 
-1. Откройте **Терминал** (Terminal)
-2. Выполните команду:
+1. Open **Terminal**
+2. Run the command:
    ```bash
-   xattr -cr /Applications/VPNBarApp.app
+   sudo xattr -cr /Applications/VPNBarApp.app
    ```
-3. Если это не помогло, попробуйте:
+3. If that doesn't work, try:
    ```bash
    sudo xattr -rd com.apple.quarantine /Applications/VPNBarApp.app
    ```
-4. После этого попробуйте запустить приложение снова
+4. Then try launching the app again
 
-Альтернативный способ:
-1. Откройте **Системные настройки** → **Конфиденциальность и безопасность**
-2. Найдите сообщение о блокировке приложения
-3. Нажмите **Открыть в любом случае**
+Alternative method:
+1. Open **System Settings** → **Privacy & Security**
+2. Find the message about the blocked app
+3. Click **Open Anyway**
 
-## Использование
+## Usage
 
-### Основные действия
+### Basic Actions
 
-- **Левый клик по иконке** — переключает активное VPN-подключение (или первое доступное, если нет активных)
-- **Правый клик по иконке** — открывает меню со списком VPN-подключений
-- **Клик по VPN в меню** — подключает или отключает выбранное VPN-подключение
-- **Горячие клавиши** — настраиваемая комбинация клавиш для переключения VPN из любого приложения
+- **Left-click the icon** — toggles the active VPN connection (or the first available if none are active)
+- **Right-click the icon** — opens the menu with VPN connections list
+- **Click a VPN in the menu** — connects or disconnects the selected VPN
+- **Hotkey** — configurable keyboard shortcut to toggle VPN from any application
 
-### Настройки
+### Settings
 
-Откройте меню и выберите "Настройки" для доступа к параметрам приложения:
+Open the menu and select "Settings" to access app preferences:
 
-#### Основные
-- **Интервал обновления статуса** — настройте, как часто приложение будет проверять статус VPN-подключений (рекомендуется: 10-15 секунд)
-- **Уведомления** — включите/выключите системные уведомления при подключении или отключении VPN
-- **Отображение** — показывать имя подключения во всплывающей подсказке (tooltip) при наведении на иконку
-- **Запускать при входе в систему** — автоматический запуск приложения при входе в систему (macOS 13+)
+#### General
+- **Status Update Interval** — configure how often the app checks VPN connection status (recommended: 10-15 seconds)
+- **Notifications** — enable/disable system notifications when VPN connects or disconnects
+- **Display** — show connection name in tooltip when hovering over the icon
+- **Launch at Login** — automatically start the app at system login (macOS 13+)
 
-#### Горячие клавиши
-- **Переключение VPN** — установите глобальную горячую клавишу для быстрого переключения VPN-подключения
-- Улучшенный интерфейс записи горячих клавиш с визуальным отображением модификаторов и валидацией
+#### Hotkeys
+- **Toggle VPN** — set a global hotkey for quick VPN toggling
+- Enhanced shortcut recording interface with visual modifier display and validation
 
-#### О программе
-- Информация о приложении, версии и авторе
-- Краткое описание функциональности
-- Прямая ссылка на репозиторий проекта на GitHub
+#### About
+- App information, version, and author
+- Brief functionality description
+- Direct link to the GitHub repository
 
-## Системные требования
+## System Requirements
 
-- macOS 12.0 (Monterey) или новее
-- Настроенные VPN-подключения в системе
+- macOS 12.0 (Monterey) or later
+- Configured VPN connections in the system
 
-## Автозагрузка
+## Auto-Start
 
-Для автоматического запуска приложения при входе в систему:
+To automatically launch the app at login:
 
-1. Откройте **Системные настройки**
-2. Перейдите в **Пользователи и группы**
-3. Выберите вкладку **Объекты входа**
-4. Нажмите кнопку **+** и добавьте `VPNBarApp.app` (отображается как "VPN Bar")
+1. Open **System Settings**
+2. Go to **Users & Groups**
+3. Select the **Login Items** tab
+4. Click the **+** button and add `VPNBarApp.app` (displays as "VPN Bar")
 
-## Разработка
+## Development
 
-Приложение разработано с использованием Swift и следует рекомендациям Apple по разработке нативных приложений для macOS.
+The application is built with Swift and follows Apple's guidelines for native macOS app development.
 
-### Сборка из исходников
+### Building from Source
 
 ```bash
 swift build -c release
 ./Scripts/package_app.sh
 ```
 
-### Создание релиза
+### Creating a Release
 
-Релизы создаются автоматически при создании тега в формате `v*` (например, `v0.2.0`):
+Releases are created automatically when pushing a tag in the `v*` format (e.g., `v0.2.0`):
 
 ```bash
-# После завершения работы над версией
+# After finishing work on a version
 git tag v0.2.0
 git push origin v0.2.0
 ```
 
-GitHub Actions автоматически:
-- Соберет приложение
-- Создаст .app bundle
-- Упакует в ZIP архив
-- Создаст GitHub Release с прикрепленным архивом
+GitHub Actions will automatically:
+- Build the application
+- Create the .app bundle
+- Package it into a ZIP archive
+- Create a GitHub Release with the attached archive
