@@ -39,3 +39,8 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
+# Cursor IDE
+.cursor/
+
+# Documentation
+CLAUDE.md

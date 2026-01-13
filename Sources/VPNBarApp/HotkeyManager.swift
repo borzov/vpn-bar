@@ -2,37 +2,47 @@ import AppKit
 import Carbon
 import os.log
 
-/// Управляет регистрацией и обработкой глобальных горячих клавиш.
+/// Manages registration and handling of global hotkeys.
 class HotkeyManager: HotkeyManagerProtocol {
     static let shared = HotkeyManager()
-    
+
     private var hotKeyRef: EventHotKeyRef?
     private var hotKeyID = EventHotKeyID(signature: FourCharCode(fromString: "VPNT"), id: 1)
     private var isRegistered = false
     private var callback: (() -> Void)?
     private var eventHandler: EventHandlerRef?
-    
+
     private var isSetup = false
-    
+    /// Flag to prevent use-after-free in event handler callback.
+    /// Set to false in deinit and cleanup to prevent callback execution
+    /// after manager memory is deallocated. Checked before each callback invocation.
+    private var isValid = true
+
     private init() {
         setupEventHandler()
     }
-    
+
+    deinit {
+        // Mark as invalid before cleanup to prevent callback from accessing deallocated memory
+        isValid = false
+        cleanup()
+    }
+
     private func setupEventHandler() {
         guard !isSetup else { return }
-        
+
         var eventSpec = EventTypeSpec(
             eventClass: OSType(kEventClassKeyboard),
             eventKind: OSType(kEventHotKeyPressed)
         )
-        
+
         let userData = Unmanaged.passUnretained(self).toOpaque()
-        
+
         let eventHandlerUPP: EventHandlerUPP = { (nextHandler, theEvent, userData) -> OSStatus in
-            guard let userData = userData else { 
-                return OSStatus(eventNotHandledErr) 
+            guard let userData = userData else {
+                return OSStatus(eventNotHandledErr)
             }
-            
+
             var hotKeyID = EventHotKeyID()
             let err = GetEventParameter(
                 theEvent,
@@ -43,24 +53,34 @@ class HotkeyManager: HotkeyManagerProtocol {
                 nil,
                 &hotKeyID
             )
-            
+
             if err == noErr {
+                // Note: This is an unretained reference - the manager must remain valid
+                // while the event handler is installed. The isValid flag provides
+                // additional safety in case of unexpected deallocation.
                 let manager = Unmanaged<HotkeyManager>.fromOpaque(userData).takeUnretainedValue()
-                
-                if hotKeyID.id == manager.hotKeyID.id && 
+
+                // Safety check: ensure manager hasn't been invalidated
+                guard manager.isValid else {
+                    return OSStatus(eventNotHandledErr)
+                }
+
+                if hotKeyID.id == manager.hotKeyID.id &&
                    hotKeyID.signature == manager.hotKeyID.signature {
                     if let callback = manager.callback {
                         DispatchQueue.main.async {
+                            // Double-check validity before executing callback
+                            guard manager.isValid else { return }
                             callback()
                         }
                     }
                     return noErr
                 }
             }
-            
+
             return OSStatus(eventNotHandledErr)
         }
-        
+
         var handlerRef: EventHandlerRef?
         let status = InstallEventHandler(
             GetApplicationEventTarget(),
@@ -70,18 +90,18 @@ class HotkeyManager: HotkeyManagerProtocol {
             userData,
             &handlerRef
         )
-        
+
         if status == noErr {
             self.eventHandler = handlerRef
             self.isSetup = true
         }
     }
     
-    /// Регистрирует глобальную горячую клавишу.
+    /// Registers a global hotkey.
     /// - Parameters:
-    ///   - keyCode: Код клавиши.
-    ///   - modifiers: Модификаторы Carbon.
-    ///   - callback: Обработчик нажатия.
+    ///   - keyCode: Key code.
+    ///   - modifiers: Carbon modifiers.
+    ///   - callback: Press handler.
     func registerHotkey(keyCode: UInt32, modifiers: UInt32, callback: @escaping () -> Void) {
         unregisterHotkey()
         
@@ -107,7 +127,7 @@ class HotkeyManager: HotkeyManagerProtocol {
         }
     }
     
-    /// Отменяет регистрацию горячей клавиши и очищает callback.
+    /// Unregisters the hotkey and clears the callback.
     func unregisterHotkey() {
         if let ref = hotKeyRef, isRegistered {
             UnregisterEventHotKey(ref)
@@ -117,11 +137,15 @@ class HotkeyManager: HotkeyManagerProtocol {
         callback = nil
     }
     
-    /// Явно очищает все ресурсы. Должен вызываться при завершении приложения.
+    /// Explicitly cleans up all resources. Should be called when the application terminates.
     func cleanup() {
         Logger.hotkey.info("Cleaning up hotkey manager")
+
+        // Mark as invalid first to prevent any pending callbacks from executing
+        isValid = false
+
         unregisterHotkey()
-        
+
         if let handler = eventHandler {
             RemoveEventHandler(handler)
             eventHandler = nil

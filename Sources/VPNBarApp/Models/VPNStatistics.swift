@@ -1,15 +1,16 @@
 import Foundation
 
 /// Статистика использования VPN.
-struct VPNStatistics: Codable {
+struct VPNStatistics: Codable, Equatable {
     var totalConnections: Int = 0
     var totalDisconnections: Int = 0
     var totalConnectionTime: TimeInterval = 0
     var lastConnectionDate: Date?
     var lastDisconnectionDate: Date?
     var longestSessionDuration: TimeInterval = 0
-    var shortestSessionDuration: TimeInterval = .infinity
-    
+    /// Shortest session duration. Uses nil instead of .infinity for cleaner handling.
+    var shortestSessionDuration: TimeInterval? = nil
+
     /// Средняя продолжительность сессии в секундах.
     var averageSessionDuration: TimeInterval {
         guard totalConnections > 0 else { return 0 }
@@ -59,21 +60,23 @@ final class StatisticsManager {
     /// Записывает окончание подключения.
     func recordDisconnection() {
         guard let start = currentSessionStart else { return }
-        
+
         let duration = Date().timeIntervalSince(start)
         var stats = statistics
         stats.totalDisconnections += 1
         stats.totalConnectionTime += duration
         stats.lastDisconnectionDate = Date()
-        
+
         if duration > stats.longestSessionDuration {
             stats.longestSessionDuration = duration
         }
-        
-        if duration < stats.shortestSessionDuration || stats.shortestSessionDuration == .infinity {
+
+        if let currentShortest = stats.shortestSessionDuration, duration < currentShortest {
+            stats.shortestSessionDuration = duration
+        } else if stats.shortestSessionDuration == nil {
             stats.shortestSessionDuration = duration
         }
-        
+
         statistics = stats
         currentSessionStart = nil
     }

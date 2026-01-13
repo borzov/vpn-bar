@@ -43,6 +43,17 @@ final class VPNSessionManager: VPNSessionManagerProtocol {
             ne_session_set_event_handler(session, sessionQueue) { [weak self] event, _ in
                 Task { @MainActor in
                     guard let self = self else { return }
+
+                    // Log significant connection events
+                    switch event {
+                    case 1: // NESessionEventTypeConnected
+                        Logger.vpn.info("Connection established: \(identifier)")
+                    case 2: // NESessionEventTypeFailed
+                        Logger.vpn.error("Connection failed: \(identifier)")
+                    default:
+                        break
+                    }
+
                     self.refreshSessionStatus(for: identifier, session: session)
                 }
             }
@@ -57,24 +68,10 @@ final class VPNSessionManager: VPNSessionManagerProtocol {
         guard let session = sessions[connectionID] else {
             throw VPNError.sessionNotFound(id: connectionID)
         }
-        
-        ne_session_set_event_handler(session, sessionQueue) { [weak self] event, eventData in
-            Task { @MainActor in
-                guard let self = self else { return }
-                
-                switch event {
-                case 1: // Connected
-                    Logger.vpn.info("Connection established: \(connectionID)")
-                    self.refreshSessionStatus(for: connectionID, session: session)
-                case 2: // Failed
-                    Logger.vpn.error("Connection failed: \(connectionID)")
-                    self.refreshSessionStatus(for: connectionID, session: session)
-                default:
-                    self.refreshSessionStatus(for: connectionID, session: session)
-                }
-            }
-        }
-        
+
+        // Event handler is already set in getOrCreateSession(), no need to set again
+        // This prevents multiple handlers firing simultaneously and memory leaks
+
         ne_session_start(session)
     }
     

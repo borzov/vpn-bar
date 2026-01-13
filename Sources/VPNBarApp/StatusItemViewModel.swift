@@ -28,6 +28,7 @@ final class StatusItemViewModel {
     private let vpnManager: VPNManagerProtocol
     private let settings: SettingsManagerProtocol
     private var cancellables = Set<AnyCancellable>()
+    private var fallbackTimer: Timer?
 
     init(vpnManager: VPNManagerProtocol, settings: SettingsManagerProtocol) {
         self.vpnManager = vpnManager
@@ -55,9 +56,38 @@ final class StatusItemViewModel {
                 }
                 .store(in: &cancellables)
         } else {
-            // Fallback для протокола без Combine
-            state = StatusItemViewModel.makeState(connections: vpnManager.connections, settings: settings)
+            // Fallback for protocol without Combine - use timer-based polling
+            setupFallbackTimer()
+
+            // Also subscribe to showConnectionNameDidChange
+            NotificationCenter.default
+                .publisher(for: .showConnectionNameDidChange)
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    self?.updateStateFromManager()
+                }
+                .store(in: &cancellables)
         }
+    }
+
+    private func setupFallbackTimer() {
+        fallbackTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateStateFromManager()
+            }
+        }
+    }
+
+    private func updateStateFromManager() {
+        state = StatusItemViewModel.makeState(
+            connections: vpnManager.connections,
+            settings: settings
+        )
+    }
+
+    deinit {
+        fallbackTimer?.invalidate()
+        fallbackTimer = nil
     }
 
     /// Собирает состояние статус-бара на основе подключений и настроек.

@@ -2,44 +2,57 @@ import Foundation
 import Darwin
 import os.log
 
-/// Загружает VPN-конфигурации из системы.
+/// Loads VPN configurations from the system.
 @MainActor
 final class VPNConfigurationLoader: VPNConfigurationLoaderProtocol {
     private let sessionQueue = DispatchQueue(label: "VPNBarApp.configurationLoader")
     private var networkExtensionFrameworkLoaded = false
-    
+    /// Flag to prevent recursive calls to loadConfigurationsAlternative.
+    /// Set to true when entering the alternative loading path and reset via defer.
+    /// Prevents infinite recursion if the alternative path attempts to call loadConfigurations again.
+    private var isLoadingAlternative = false
+
     func loadConfigurations(completion: @escaping (Result<[VPNConnection], VPNError>) -> Void) {
         loadNetworkExtensionFrameworkIfNeeded()
-        
+
         let managerClass: AnyClass? = NSClassFromString("NEConfigurationManager")
-        
+
         guard let managerType = managerClass as? NSObject.Type else {
             loadConfigurationsAlternative(completion: completion)
             return
         }
-        
+
         loadConfigurationsWithManagerType(managerType, completion: completion)
     }
-    
+
     private func loadConfigurationsAlternative(completion: @escaping (Result<[VPNConnection], VPNError>) -> Void) {
+        // Prevent infinite recursion
+        guard !isLoadingAlternative else {
+            Logger.vpn.warning("Preventing recursive call to loadConfigurationsAlternative")
+            completion(.success([]))
+            return
+        }
+
+        isLoadingAlternative = true
+        defer { isLoadingAlternative = false }
+
         let frameworkPath = "/System/Library/Frameworks/NetworkExtension.framework/NetworkExtension"
         guard let framework = dlopen(frameworkPath, RTLD_LAZY) else {
             let error = String(cString: dlerror())
             completion(.failure(.frameworkLoadFailed(reason: error)))
             return
         }
-        
+
         defer { dlclose(framework) }
-        
+
         guard let managerClass = NSClassFromString("NEConfigurationManager") as? NSObject.Type else {
-            if objc_getClass("NEConfigurationManager") != nil {
-                loadConfigurations(completion: completion)
-            } else {
-                completion(.success([]))
-            }
+            // Class not available even after loading framework - return empty result
+            // Note: We do NOT retry loadConfigurations here to prevent infinite recursion
+            Logger.vpn.warning("NEConfigurationManager class not available after loading framework")
+            completion(.success([]))
             return
         }
-        
+
         loadConfigurationsWithManagerType(managerClass, completion: completion)
     }
     

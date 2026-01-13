@@ -1,9 +1,4 @@
 # VPN Bar
-
-A lightweight and convenient menu bar application for macOS that allows you to quickly manage VPN connections directly from the menu bar.
-
-## Description
-
 VPN Bar is a native macOS application that lives in the menu bar and provides quick access to VPN connection management. The app automatically detects all configured VPN connections on your system and allows you to connect or disconnect with a single click.
 
 ## Screenshots
@@ -154,12 +149,12 @@ swift build -c release
 
 ### Creating a Release
 
-Releases are created automatically when pushing a tag in the `v*` format (e.g., `v0.5.3`):
+Releases are created automatically when pushing a tag in the `v*` format (e.g., `v0.6.0`):
 
 ```bash
 # After finishing work on a version
-git tag v0.5.3
-git push origin v0.5.3
+git tag v0.6.0
+git push origin v0.6.0
 ```
 
 GitHub Actions will automatically:

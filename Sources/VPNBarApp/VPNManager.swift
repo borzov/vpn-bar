@@ -3,7 +3,7 @@ import SystemConfiguration
 import Darwin
 import os.log
 
-/// Менеджер VPN-соединений, отвечающий за загрузку конфигураций и управление сессиями.
+/// Manages VPN connections, responsible for loading configurations and managing sessions.
 @MainActor
 class VPNManager: VPNManagerProtocol {
     static let shared: VPNManager = {
@@ -26,8 +26,18 @@ class VPNManager: VPNManagerProtocol {
     private let sessionManager: VPNSessionManagerProtocol
     private var updateTimer: Timer?
     private var loadTask: Task<Void, Never>?
+    /// Request ID for tracking the relevance of configuration load results.
+    /// Used to prevent race conditions: stale results are ignored if a new load request
+    /// was initiated during their processing.
+    /// Uses overflow-safe operator `&+=` - wraparound is not a practical concern.
+    private var loadRequestID: UInt64 = 0
+    /// Dictionary of timeout tasks for disconnection operations by connectionID.
+    /// Each task tracks the disconnection timeout and resets the connection status
+    /// if disconnection doesn't complete within the specified time.
+    /// Tasks are automatically cancelled upon successful disconnection.
+    private var disconnectTimeoutTasks: [String: Task<Void, Never>] = [:]
     
-    /// Интервал обновления списка соединений; при изменении перезапускает мониторинг.
+    /// Update interval for the connections list; restarts monitoring when changed.
     var updateInterval: TimeInterval {
         get {
             SettingsManager.shared.updateInterval
@@ -53,7 +63,7 @@ class VPNManager: VPNManagerProtocol {
             self.configurationLoader = VPNConfigurationLoader()
         }
         
-        // Создаем sessionManager с обработчиком обновления статусов
+        // Create sessionManager with status update handler
         var handler: ((String, SCNetworkConnectionStatus) -> Void)?
         if sessionManager == nil {
             handler = { connectionID, status in
@@ -74,32 +84,47 @@ class VPNManager: VPNManagerProtocol {
     deinit {
         updateTimer?.invalidate()
         updateTimer = nil
-        // Note: deinit не может вызывать @MainActor методы синхронно
-        // Очистка будет выполнена при завершении приложения через AppDelegate
+        // Note: deinit cannot call @MainActor methods synchronously
+        // Cleanup will be performed at application termination via AppDelegate
     }
     
-    /// Загружает доступные VPN-конфигурации.
-    /// - Parameter forceReload: Принудительно перезагружает даже при наличии кэша.
+    /// Loads available VPN configurations.
+    /// - Parameter forceReload: Forces reload even if cache is available.
+    /// 
+    /// Uses request versioning (loadRequestID) to prevent race conditions:
+    /// if a new request was initiated during result processing, the old result is ignored.
     func loadConnections(forceReload: Bool = false) {
         loadTask?.cancel()
-        
+
         if forceReload {
             lastFullReload = Date()
         }
-        
+
+        // Increment request ID to track this specific load request
+        // Uses overflow-safe operator &+= - wraparound is not a practical concern
+        loadRequestID &+= 1
+        let currentRequestID = loadRequestID
+
         loadTask = Task { @MainActor in
             guard !Task.isCancelled else { return }
-            
+
             loadingError = nil
-            
+
             configurationLoader.loadConfigurations { [weak self] result in
                 Task { @MainActor in
-                    guard let self = self, !Task.isCancelled else { return }
-                    
+                    guard let self = self else { return }
+
+                    // Check if this is still the latest request
+                    // This prevents stale results from overwriting newer ones
+                    guard currentRequestID == self.loadRequestID else {
+                        Logger.vpn.debug("Ignoring stale load result (request \(currentRequestID), current \(self.loadRequestID))")
+                        return
+                    }
+
                     switch result {
                     case .success(let loadedConnections):
                         self.processLoadedConnections(loadedConnections)
-                        
+
                         let now = Date()
                         if now.timeIntervalSince(self.lastStatusUpdate) >= self.statusUpdateInterval {
                             self.lastStatusUpdate = now
@@ -113,10 +138,10 @@ class VPNManager: VPNManagerProtocol {
         }
     }
     
-    /// Подключает выбранное соединение.
+    /// Connects to the selected connection.
     /// - Parameters:
-    ///   - connectionID: Идентификатор соединения.
-    ///   - retryCount: Количество попыток подключения (по умолчанию 3).
+    ///   - connectionID: Connection identifier.
+    ///   - retryCount: Number of connection attempts (default is 3).
     func connect(to connectionID: String, retryCount: Int = AppConstants.defaultRetryCount) {
         connectWithRetry(to: connectionID, retryCount: retryCount, attempt: 1)
     }
@@ -127,7 +152,7 @@ class VPNManager: VPNManagerProtocol {
             Logger.vpn.error("Connection not found: \(connectionID)")
             return
         }
-        
+
         if sessionManager.hasSession(for: connectionID) {
             do {
                 try sessionManager.startConnection(connectionID: connectionID)
@@ -142,6 +167,8 @@ class VPNManager: VPNManagerProtocol {
                     }
                 } else {
                     loadingError = error as? VPNError ?? .connectionFailed(underlying: error.localizedDescription)
+                    // Reset status to disconnected after all retries exhausted
+                    resetConnectionToDisconnected(connectionID: connectionID)
                 }
             }
         } else {
@@ -183,7 +210,7 @@ class VPNManager: VPNManagerProtocol {
         if attempt < retryCount {
             let delay = AppConstants.retryBaseDelay * pow(2.0, Double(attempt - 1))
             Logger.vpn.info("Session creation failed, retrying in \(delay) seconds...")
-            
+
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 self.connectWithRetry(to: connectionID, retryCount: retryCount, attempt: attempt + 1)
@@ -191,12 +218,28 @@ class VPNManager: VPNManagerProtocol {
         } else {
             Logger.vpn.error("Session creation failed after \(retryCount) attempts for: \(connectionID)")
             loadingError = .sessionCreationFailed(id: connectionID)
+            // Reset status to disconnected after all retries exhausted
+            resetConnectionToDisconnected(connectionID: connectionID)
+        }
+    }
+
+    /// Resets connection status to disconnected.
+    /// Used when connection attempts fail after all retries are exhausted.
+    /// - Parameter connectionID: Connection identifier to reset status for.
+    private func resetConnectionToDisconnected(connectionID: String) {
+        if let index = connections.firstIndex(where: { $0.id == connectionID }) {
+            if connections[index].status != .disconnected {
+                var updatedConnections = connections
+                updatedConnections[index].status = .disconnected
+                connections = updatedConnections
+                updateActiveStatus()
+            }
         }
     }
     
     
-    /// Отключает выбранное соединение.
-    /// - Parameter connectionID: Идентификатор соединения.
+    /// Disconnects the selected connection.
+    /// - Parameter connectionID: Connection identifier.
     func disconnect(from connectionID: String) {
         Logger.vpn.info("Disconnecting from VPN: \(connectionID)")
         guard connections.contains(where: { $0.id == connectionID }) else {
@@ -204,12 +247,12 @@ class VPNManager: VPNManagerProtocol {
             Logger.vpn.error("Connection not found: \(connectionID)")
             return
         }
-        
+
         guard sessionManager.hasSession(for: connectionID) else {
             loadingError = .sessionNotFound(id: connectionID)
             return
         }
-        
+
         if let index = connections.firstIndex(where: { $0.id == connectionID }) {
             if connections[index].status != .disconnecting {
                 var updatedConnections = connections
@@ -218,10 +261,13 @@ class VPNManager: VPNManagerProtocol {
                 updateActiveStatus()
             }
         }
-        
-        var timeoutTask: Task<Void, Never>?
-        
-        timeoutTask = Task { @MainActor in
+
+        // Cancel any existing timeout task for this connection
+        disconnectTimeoutTasks[connectionID]?.cancel()
+
+        // Store timeout task in instance property to prevent premature deallocation
+        // The task will reset connection status to disconnected if disconnection doesn't complete in time
+        disconnectTimeoutTasks[connectionID] = Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(AppConstants.connectionTimeout * 1_000_000_000))
             if !Task.isCancelled {
                 Logger.vpn.error("Disconnection timeout for: \(connectionID)")
@@ -232,19 +278,20 @@ class VPNManager: VPNManagerProtocol {
                     self.connections = updatedConnections
                     self.updateActiveStatus()
                 }
+                self.disconnectTimeoutTasks.removeValue(forKey: connectionID)
             }
         }
-        
+
         do {
             try sessionManager.stopConnection(connectionID: connectionID)
-            
-            // Обновляем статус после отключения
+
+            // Update status after disconnection
             sessionManager.getSessionStatus(connectionID: connectionID) { [weak self] status in
                 Task { @MainActor in
                     guard let self = self else { return }
-                    timeoutTask?.cancel()
-                    timeoutTask = nil
-                    
+                    self.disconnectTimeoutTasks[connectionID]?.cancel()
+                    self.disconnectTimeoutTasks.removeValue(forKey: connectionID)
+
                     if status == .disconnected {
                         Logger.vpn.info("Disconnected from VPN: \(connectionID)")
                         SoundFeedbackManager.shared.play(.disconnection)
@@ -261,16 +308,16 @@ class VPNManager: VPNManagerProtocol {
                 }
             }
         } catch {
-            timeoutTask?.cancel()
-            timeoutTask = nil
+            disconnectTimeoutTasks[connectionID]?.cancel()
+            disconnectTimeoutTasks.removeValue(forKey: connectionID)
             Logger.vpn.error("Disconnection failed: \(connectionID)")
             loadingError = .connectionFailed(underlying: error.localizedDescription)
             updateConnectionStatus(identifier: connectionID, newStatus: .disconnected)
         }
     }
     
-    /// Переключает состояние указанного соединения.
-    /// - Parameter connectionID: Идентификатор соединения.
+    /// Toggles the state of the specified connection.
+    /// - Parameter connectionID: Connection identifier.
     func toggleConnection(_ connectionID: String) {
         guard let connection = connections.first(where: { $0.id == connectionID }) else {
             return
@@ -285,7 +332,7 @@ class VPNManager: VPNManagerProtocol {
         }
     }
     
-    /// Отключает все активные VPN-подключения.
+    /// Disconnects all active VPN connections.
     func disconnectAll() {
         let activeConnections = connections.filter { $0.status.isActive }
         
@@ -423,9 +470,15 @@ class VPNManager: VPNManagerProtocol {
         hasActiveConnection = connections.contains { $0.status.isActive }
     }
     
-    /// Освобождает ресурсы при завершении приложения.
+    /// Releases resources when the application terminates.
     func cleanup() {
         stopMonitoring()
+        loadTask?.cancel()
+        loadTask = nil
+        for (_, task) in disconnectTimeoutTasks {
+            task.cancel()
+        }
+        disconnectTimeoutTasks.removeAll()
         sessionManager.cleanup()
     }
 }

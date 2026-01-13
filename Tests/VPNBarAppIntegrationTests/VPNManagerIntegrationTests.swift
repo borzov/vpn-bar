@@ -1,63 +1,22 @@
 import XCTest
 @testable import VPNBarApp
 
+/// Integration tests for VPNManager.
+/// These tests are skipped because VPNManager.shared initializes StatusBarController,
+/// which in turn initializes NotificationManager that requires a real app bundle.
 @MainActor
 final class VPNManagerIntegrationTests: XCTestCase {
-    var sut: VPNManager!
-    
-    override func setUp() {
-        super.setUp()
-        // Инициализируем sut для предотвращения крашей, даже если тесты будут пропущены
-        sut = VPNManager.shared
-    }
-    
-    override func tearDown() {
-        sut = nil
-        super.tearDown()
-    }
-    
+
     func test_loadConnections_canLoadFromSystem() throws {
-        try XCTSkip("Integration tests require system VPN configurations")
-        let expectation = XCTestExpectation(description: "Connections should load")
-        
-        sut.loadConnections(forceReload: true)
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            expectation.fulfill()
-        }
-        
-        wait(for: [expectation], timeout: 5.0)
-        
-        XCTAssertTrue(true)
+        throw XCTSkip("Integration tests require system VPN configurations and real app bundle")
     }
-    
+
     func test_connections_afterLoad_areValid() throws {
-        try XCTSkip("Integration tests require system VPN configurations")
-        let expectation = XCTestExpectation(description: "Connections should be valid")
-        
-        sut.loadConnections(forceReload: true)
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            for connection in self.sut.connections {
-                XCTAssertFalse(connection.id.isEmpty)
-                XCTAssertFalse(connection.name.isEmpty)
-            }
-            expectation.fulfill()
-        }
-        
-        wait(for: [expectation], timeout: 5.0)
+        throw XCTSkip("Integration tests require system VPN configurations and real app bundle")
     }
-    
+
     func test_updateInterval_persistsBetweenCalls() throws {
-        try XCTSkip("Integration tests require system VPN configurations")
-        let originalInterval = sut.updateInterval
-        let newInterval: TimeInterval = 25.0
-        
-        sut.updateInterval = newInterval
-        
-        XCTAssertEqual(sut.updateInterval, newInterval)
-        
-        sut.updateInterval = originalInterval
+        throw XCTSkip("Integration tests require system VPN configurations and real app bundle")
     }
 }
 
