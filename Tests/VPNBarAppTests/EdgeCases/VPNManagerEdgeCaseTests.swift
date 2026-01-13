@@ -169,8 +169,8 @@ final class VPNManagerEdgeCaseTests: XCTestCase {
     func test_disconnect_timeoutTask_isCreated() async {
         let connection = VPNConnectionFactory.createConnected()
         sut.connections = [connection]
-        mockSessionManager.sessions.insert(connection.id)
-        mockSessionManager.cachedStatuses[connection.id] = .connected
+        mockSessionManager.setSession(for: connection.id)
+        mockSessionManager.setCachedStatus(.connected, for: connection.id)
         
         sut.disconnect(from: connection.id)
         
@@ -184,8 +184,8 @@ final class VPNManagerEdgeCaseTests: XCTestCase {
     func test_disconnect_successfulDisconnect_cancelsTimeout() async {
         let connection = VPNConnectionFactory.createConnected()
         sut.connections = [connection]
-        mockSessionManager.sessions.insert(connection.id)
-        mockSessionManager.cachedStatuses[connection.id] = .disconnected
+        mockSessionManager.setSession(for: connection.id)
+        mockSessionManager.setCachedStatus(.disconnected, for: connection.id)
         
         sut.disconnect(from: connection.id)
         
@@ -205,8 +205,8 @@ final class VPNManagerEdgeCaseTests: XCTestCase {
         // We'll use a shorter timeout by checking the behavior
         let connection = VPNConnectionFactory.createConnected()
         sut.connections = [connection]
-        mockSessionManager.sessions.insert(connection.id)
-        mockSessionManager.cachedStatuses[connection.id] = .connected
+        mockSessionManager.setSession(for: connection.id)
+        mockSessionManager.setCachedStatus(.connected, for: connection.id)
         
         // Set status to disconnecting
         if let index = sut.connections.firstIndex(where: { $0.id == connection.id }) {
@@ -228,7 +228,7 @@ final class VPNManagerEdgeCaseTests: XCTestCase {
     func test_connect_failureAfterRetries_resetsToDisconnected() async {
         let connection = VPNConnectionFactory.createDisconnected()
         sut.connections = [connection]
-        mockSessionManager.sessions.insert(connection.id)
+        mockSessionManager.setSession(for: connection.id)
         mockSessionManager.shouldThrowOnStart = true
         
         sut.connect(to: connection.id, retryCount: 1)

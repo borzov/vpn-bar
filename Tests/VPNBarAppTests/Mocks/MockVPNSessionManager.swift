@@ -81,4 +81,14 @@ final class MockVPNSessionManager: VPNSessionManagerProtocol {
         sessions.removeAll()
         cachedStatuses.removeAll()
     }
+    
+    // MARK: - Test Helpers
+    
+    func setSession(for connectionID: String) {
+        sessions.insert(connectionID)
+    }
+    
+    func setCachedStatus(_ status: SCNetworkConnectionStatus, for connectionID: String) {
+        cachedStatuses[connectionID] = status
+    }
 }
