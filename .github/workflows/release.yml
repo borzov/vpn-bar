@@ -52,10 +52,20 @@ jobs:
         
     - name: Create ZIP archive
       run: |
-        APP_DIR=$(dirname "$(find . -name "VPNBarApp.app" -type d | head -1)")
+        APP_PATH=$(find . -name "VPNBarApp.app" -type d | head -1)
+        if [ -z "$APP_PATH" ]; then
+          echo "Error: VPNBarApp.app not found"
+          exit 1
+        fi
+        APP_DIR=$(dirname "$APP_PATH")
         cd "$APP_DIR"
         # Используем ditto для лучшей совместимости с macOS
+        # --keepParent создает правильную структуру для Homebrew Cask:
+        # VPNBarApp.zip -> VPNBarApp.app/Contents/...
         ditto -c -k --keepParent VPNBarApp.app VPNBarApp.zip
+        # Проверяем структуру архива
+        echo "Checking ZIP structure..."
+        unzip -l VPNBarApp.zip | head -10
         mv VPNBarApp.zip ${{ github.workspace }}/VPNBarApp.zip
         
     - name: Extract version from tag

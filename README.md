@@ -50,6 +50,12 @@ brew tap borzov/vpn-bar https://github.com/borzov/vpn-bar
 brew install --cask vpn-bar
 ```
 
+By default, Homebrew installs apps to `~/Applications`. To install to `/Applications` instead:
+
+```bash
+brew install --cask --appdir="/Applications" vpn-bar
+```
+
 To update:
 ```bash
 brew upgrade --cask vpn-bar
@@ -58,7 +64,11 @@ brew upgrade --cask vpn-bar
 **Note:** Since this app is not signed with an Apple Developer certificate, you may need to run the following command after installation if you see a "damaged app" error:
 
 ```bash
+# If installed to /Applications
 sudo xattr -cr /Applications/VPNBarApp.app
+
+# If installed to ~/Applications
+sudo xattr -cr ~/Applications/VPNBarApp.app
 ```
 
 ### Manual Installation

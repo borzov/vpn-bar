@@ -9,6 +9,8 @@ cask "vpn-bar" do
 
   depends_on macos: ">= :monterey"
 
+  # ZIP archive structure: VPNBarApp.zip -> VPNBarApp.app/Contents/...
+  # Homebrew Cask expects the app bundle in the root of the archive
   app "VPNBarApp.app"
 
   postflight do
