@@ -52,7 +52,10 @@ class MenuController {
     
     private func buildMenu() {
         let newMenu = NSMenu()
-        newMenu.appearance = NSApp.effectiveAppearance
+        // Set appearance only if NSApplication is available (not in test environment)
+        if let app = NSApplication.shared as NSApplication?, app.isRunning {
+            newMenu.appearance = app.effectiveAppearance
+        }
         
         if let error = vpnManager.loadingError {
             let errorItem = NSMenuItem(title: error.errorDescription ?? "", action: nil, keyEquivalent: "")
