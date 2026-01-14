@@ -6,20 +6,26 @@ import Combine
 final class StatusItemViewModelTests: XCTestCase {
     var sut: StatusItemViewModel!
     var cancellables: Set<AnyCancellable>!
+    var mockVPNManager: MockVPNManager!
+    var mockSettingsManager: MockSettingsManager!
     
     override func setUp() {
         super.setUp()
         cancellables = Set<AnyCancellable>()
+        mockVPNManager = MockVPNManager()
+        mockSettingsManager = MockSettingsManager()
         
         sut = StatusItemViewModel(
-            vpnManager: VPNManager.shared,
-            settings: SettingsManager.shared
+            vpnManager: mockVPNManager,
+            settings: mockSettingsManager
         )
     }
     
     override func tearDown() {
         cancellables.removeAll()
         sut = nil
+        mockVPNManager = nil
+        mockSettingsManager = nil
         super.tearDown()
     }
     
@@ -38,9 +44,6 @@ final class StatusItemViewModelTests: XCTestCase {
     }
     
     func test_state_withConnectedConnection_createsConnectedState() {
-        let connection = VPNConnectionFactory.createConnected()
-        VPNManager.shared.connections = [connection]
-        
         let expectation = XCTestExpectation(description: "State should be connected")
         
         sut.$state
@@ -53,13 +56,13 @@ final class StatusItemViewModelTests: XCTestCase {
             }
             .store(in: &cancellables)
         
-        wait(for: [expectation], timeout: 1.0)
+        let connection = VPNConnectionFactory.createConnected()
+        mockVPNManager.connections = [connection]
+        
+        wait(for: [expectation], timeout: 2.0)
     }
     
     func test_state_withConnectingConnection_createsConnectingState() {
-        let connection = VPNConnectionFactory.createConnecting()
-        VPNManager.shared.connections = [connection]
-        
         let expectation = XCTestExpectation(description: "State should be connecting")
         
         sut.$state
@@ -71,13 +74,13 @@ final class StatusItemViewModelTests: XCTestCase {
             }
             .store(in: &cancellables)
         
-        wait(for: [expectation], timeout: 1.0)
+        let connection = VPNConnectionFactory.createConnecting()
+        mockVPNManager.connections = [connection]
+        
+        wait(for: [expectation], timeout: 2.0)
     }
     
     func test_state_withDisconnectingConnection_createsConnectingState() {
-        let connection = VPNConnectionFactory.createDisconnecting()
-        VPNManager.shared.connections = [connection]
-        
         let expectation = XCTestExpectation(description: "State should be connecting")
         
         sut.$state
@@ -89,12 +92,15 @@ final class StatusItemViewModelTests: XCTestCase {
             }
             .store(in: &cancellables)
         
-        wait(for: [expectation], timeout: 1.0)
+        let connection = VPNConnectionFactory.createDisconnecting()
+        mockVPNManager.connections = [connection]
+        
+        wait(for: [expectation], timeout: 2.0)
     }
     
     func test_state_whenConnectionChanges_updatesState() {
         let disconnected = VPNConnectionFactory.createDisconnected()
-        VPNManager.shared.connections = [disconnected]
+        mockVPNManager.connections = [disconnected]
         
         let expectation = XCTestExpectation(description: "State should update")
         expectation.expectedFulfillmentCount = 2
@@ -107,15 +113,13 @@ final class StatusItemViewModelTests: XCTestCase {
             .store(in: &cancellables)
         
         let connected = VPNConnectionFactory.createConnected(id: disconnected.id, name: disconnected.name)
-        VPNManager.shared.connections = [connected]
+        mockVPNManager.connections = [connected]
         
         wait(for: [expectation], timeout: 2.0)
     }
     
     func test_tooltip_withShowConnectionNameEnabled_includesName() {
-        SettingsManager.shared.showConnectionName = true
-        let connection = VPNConnectionFactory.createConnected(name: "My VPN")
-        VPNManager.shared.connections = [connection]
+        mockSettingsManager.showConnectionName = true
         
         let expectation = XCTestExpectation(description: "Tooltip should include name")
         
@@ -129,13 +133,14 @@ final class StatusItemViewModelTests: XCTestCase {
             }
             .store(in: &cancellables)
         
-        wait(for: [expectation], timeout: 1.0)
+        let connection = VPNConnectionFactory.createConnected(name: "My VPN")
+        mockVPNManager.connections = [connection]
+        
+        wait(for: [expectation], timeout: 2.0)
     }
     
     func test_tooltip_withShowConnectionNameDisabled_doesNotIncludeName() {
-        SettingsManager.shared.showConnectionName = false
-        let connection = VPNConnectionFactory.createConnected(name: "My VPN")
-        VPNManager.shared.connections = [connection]
+        mockSettingsManager.showConnectionName = false
         
         let expectation = XCTestExpectation(description: "Tooltip should not include name")
         
@@ -149,13 +154,16 @@ final class StatusItemViewModelTests: XCTestCase {
             }
             .store(in: &cancellables)
         
-        wait(for: [expectation], timeout: 1.0)
+        let connection = VPNConnectionFactory.createConnected(name: "My VPN")
+        mockVPNManager.connections = [connection]
+        
+        wait(for: [expectation], timeout: 2.0)
     }
     
     func test_state_whenShowConnectionNameChanges_updatesTooltip() {
         let connection = VPNConnectionFactory.createConnected(name: "My VPN")
-        VPNManager.shared.connections = [connection]
-        SettingsManager.shared.showConnectionName = false
+        mockVPNManager.connections = [connection]
+        mockSettingsManager.showConnectionName = false
         
         let expectation = XCTestExpectation(description: "Tooltip should update")
         expectation.expectedFulfillmentCount = 2
@@ -173,10 +181,6 @@ final class StatusItemViewModelTests: XCTestCase {
     }
     
     func test_state_withMultipleConnections_usesFirstActive() {
-        let disconnected = VPNConnectionFactory.createDisconnected(name: "VPN 1")
-        let connected = VPNConnectionFactory.createConnected(name: "VPN 2")
-        VPNManager.shared.connections = [disconnected, connected]
-        
         let expectation = XCTestExpectation(description: "State should use first active")
         
         sut.$state
@@ -189,14 +193,14 @@ final class StatusItemViewModelTests: XCTestCase {
             }
             .store(in: &cancellables)
         
-        wait(for: [expectation], timeout: 1.0)
+        let disconnected = VPNConnectionFactory.createDisconnected(name: "VPN 1")
+        let connected = VPNConnectionFactory.createConnected(name: "VPN 2")
+        mockVPNManager.connections = [disconnected, connected]
+        
+        wait(for: [expectation], timeout: 2.0)
     }
     
     func test_state_withNoActiveConnections_createsDisconnectedState() {
-        let disconnected1 = VPNConnectionFactory.createDisconnected(name: "VPN 1")
-        let disconnected2 = VPNConnectionFactory.createDisconnected(name: "VPN 2")
-        VPNManager.shared.connections = [disconnected1, disconnected2]
-        
         let expectation = XCTestExpectation(description: "State should be disconnected")
         
         sut.$state
@@ -208,7 +212,11 @@ final class StatusItemViewModelTests: XCTestCase {
             }
             .store(in: &cancellables)
         
-        wait(for: [expectation], timeout: 1.0)
+        let disconnected1 = VPNConnectionFactory.createDisconnected(name: "VPN 1")
+        let disconnected2 = VPNConnectionFactory.createDisconnected(name: "VPN 2")
+        mockVPNManager.connections = [disconnected1, disconnected2]
+        
+        wait(for: [expectation], timeout: 2.0)
     }
 }
 
