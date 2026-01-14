@@ -99,9 +99,6 @@ final class StatusItemViewModelTests: XCTestCase {
     }
     
     func test_state_whenConnectionChanges_updatesState() {
-        let disconnected = VPNConnectionFactory.createDisconnected()
-        mockVPNManager.connections = [disconnected]
-        
         let expectation = XCTestExpectation(description: "State should update")
         expectation.expectedFulfillmentCount = 2
         
@@ -112,10 +109,23 @@ final class StatusItemViewModelTests: XCTestCase {
             }
             .store(in: &cancellables)
         
+        // Set initial state
+        let disconnected = VPNConnectionFactory.createDisconnected()
+        mockVPNManager.connections = [disconnected]
+        
+        // Wait for first update (fallback timer updates every 1 second)
+        let firstUpdate = XCTestExpectation(description: "First state update")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
+            firstUpdate.fulfill()
+        }
+        wait(for: [firstUpdate], timeout: 2.0)
+        
+        // Change to connected state
         let connected = VPNConnectionFactory.createConnected(id: disconnected.id, name: disconnected.name)
         mockVPNManager.connections = [connected]
         
-        wait(for: [expectation], timeout: 2.0)
+        // Wait for second update
+        wait(for: [expectation], timeout: 3.0)
     }
     
     func test_tooltip_withShowConnectionNameEnabled_includesName() {
@@ -181,6 +191,8 @@ final class StatusItemViewModelTests: XCTestCase {
     }
     
     func test_state_withMultipleConnections_usesFirstActive() {
+        mockSettingsManager.showConnectionName = true
+        
         let expectation = XCTestExpectation(description: "State should use first active")
         
         sut.$state
