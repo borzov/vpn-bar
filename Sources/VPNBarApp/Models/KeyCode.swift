@@ -1,6 +1,6 @@
 import Carbon
 
-/// Константы кодов клавиш для использования в приложении.
+/// Key code constants for use in the application.
 enum KeyCode: UInt32 {
     case escape = 53
     case returnKey = 36

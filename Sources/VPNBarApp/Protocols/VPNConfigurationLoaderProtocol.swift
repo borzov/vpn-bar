@@ -1,10 +1,10 @@
 import Foundation
 
-/// Протокол для загрузки VPN-конфигураций из системы.
+/// Protocol for loading VPN configurations from the system.
 @MainActor
 protocol VPNConfigurationLoaderProtocol {
-    /// Загружает доступные VPN-конфигурации.
-    /// - Parameter completion: Обработчик результата загрузки.
+    /// Loads available VPN configurations.
+    /// - Parameter completion: Result handler.
     func loadConfigurations(completion: @escaping (Result<[VPNConnection], VPNError>) -> Void)
 }
 

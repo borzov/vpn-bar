@@ -3,7 +3,7 @@ import AppKit
 import os.log
 import AudioToolbox
 
-/// Типы звуковой обратной связи.
+/// Sound feedback types.
 enum SoundFeedback {
     case connectionSuccess
     case disconnection
@@ -18,7 +18,7 @@ enum SoundFeedback {
     }
 }
 
-/// Управляет звуковой обратной связью для VPN-операций.
+/// Manages sound feedback for VPN operations.
 @MainActor
 final class SoundFeedbackManager {
     static let shared = SoundFeedbackManager()
@@ -30,8 +30,8 @@ final class SoundFeedbackManager {
     
     private init() {}
     
-    /// Воспроизводит звук для указанного типа обратной связи.
-    /// - Parameter feedback: Тип звуковой обратной связи.
+    /// Plays sound for the specified feedback type.
+    /// - Parameter feedback: Sound feedback type.
     func play(_ feedback: SoundFeedback) {
         guard isEnabled else {
             logger.debug("Sound feedback is disabled")

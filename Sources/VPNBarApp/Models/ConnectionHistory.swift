@@ -1,6 +1,6 @@
 import Foundation
 
-/// Запись истории подключения.
+/// Connection history entry.
 struct ConnectionHistoryEntry: Codable, Identifiable {
     let id: String
     let connectionID: String
@@ -14,7 +14,7 @@ struct ConnectionHistoryEntry: Codable, Identifiable {
     }
 }
 
-/// Менеджер истории подключений.
+/// Connection history manager.
 @MainActor
 final class ConnectionHistoryManager {
     static let shared = ConnectionHistoryManager()
@@ -25,9 +25,9 @@ final class ConnectionHistoryManager {
     
     private init() {}
     
-    /// Получает историю подключений.
-    /// - Parameter limit: Максимальное количество записей (по умолчанию 50).
-    /// - Returns: Массив записей истории, отсортированных по времени (новые первыми).
+    /// Gets connection history.
+    /// - Parameter limit: Maximum number of entries (default is 50).
+    /// - Returns: Array of history entries sorted by time (newest first).
     func getHistory(limit: Int = 50) -> [ConnectionHistoryEntry] {
         guard let data = userDefaults.data(forKey: historyKey),
               let entries = try? JSONDecoder().decode([ConnectionHistoryEntry].self, from: data) else {
@@ -74,7 +74,7 @@ final class ConnectionHistoryManager {
         }
     }
     
-    /// Очищает историю подключений.
+    /// Clears connection history.
     func clearHistory() {
         userDefaults.removeObject(forKey: historyKey)
     }

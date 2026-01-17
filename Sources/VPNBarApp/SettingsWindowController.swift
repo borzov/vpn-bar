@@ -2,7 +2,7 @@ import AppKit
 import Combine
 import Carbon
 
-/// Контролирует окно настроек и запись глобальных горячих клавиш.
+/// Controls the settings window and global hotkey recording.
 @MainActor
 class SettingsWindowController {
     static let shared = SettingsWindowController()
@@ -47,27 +47,22 @@ class SettingsWindowController {
         window.center()
         window.isReleasedWhenClosed = false
         
-        // Создаем главный контейнер
         let contentView = NSView(frame: window.contentView!.bounds)
         contentView.autoresizingMask = [.width, .height]
         
-        // Создаем TabView
         let tabView = NSTabView()
         tabView.translatesAutoresizingMaskIntoConstraints = false
         
-        // Вкладка General
         let generalTab = NSTabViewItem(identifier: "general")
         generalTab.label = NSLocalizedString("settings.tab.general", comment: "General tab title")
         generalTab.view = createGeneralView()
         tabView.addTabViewItem(generalTab)
         
-        // Вкладка Hotkeys
         let hotkeysTab = NSTabViewItem(identifier: "hotkeys")
         hotkeysTab.label = NSLocalizedString("settings.tab.hotkeys", comment: "Hotkeys tab title")
         hotkeysTab.view = createHotkeysView()
         tabView.addTabViewItem(hotkeysTab)
 
-        // Вкладка About
         let aboutTab = NSTabViewItem(identifier: "about")
         aboutTab.label = NSLocalizedString("settings.tab.about", comment: "About tab title")
         aboutTab.view = createAboutView()
@@ -84,8 +79,6 @@ class SettingsWindowController {
         
         window.contentView = contentView
         self.window = window
-        
-        // Подписки на изменения
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(updateIntervalDidChange),
@@ -112,22 +105,18 @@ class SettingsWindowController {
         mainStack.spacing = 12
         mainStack.translatesAutoresizingMaskIntoConstraints = false
         
-        // Секция: Запуск
         let startupSection = createStartupSection()
         mainStack.addArrangedSubview(startupSection)
         mainStack.addArrangedSubview(makeDivider())
         
-        // Секция: Интервал обновления
         let intervalSection = createIntervalSection()
         mainStack.addArrangedSubview(intervalSection)
         mainStack.addArrangedSubview(makeDivider())
         
-        // Секция: Уведомления
         let notificationsSection = createNotificationsSection()
         mainStack.addArrangedSubview(notificationsSection)
         mainStack.addArrangedSubview(makeDivider())
         
-        // Секция: Отображение
         let displaySection = createDisplaySection()
         mainStack.addArrangedSubview(displaySection)
         mainStack.addArrangedSubview(makeDivider())
@@ -152,7 +141,6 @@ class SettingsWindowController {
         sectionStack.distribution = .fill
         sectionStack.spacing = 6
         
-        // Заголовок секции
         let sectionLabel = makeSectionLabel(
             NSLocalizedString(
                 "settings.status.title",
@@ -161,14 +149,12 @@ class SettingsWindowController {
         )
         sectionStack.addArrangedSubview(sectionLabel)
         
-        // Горизонтальный стек для поля ввода
         let inputStack = NSStackView()
         inputStack.orientation = .horizontal
         inputStack.alignment = .centerY
         inputStack.distribution = .fill
         inputStack.spacing = 6
         
-        // Текстовое поле
         let textField = NSTextField()
         textField.stringValue = String(format: "%.0f", settingsManager.updateInterval)
         textField.font = NSFont.systemFont(ofSize: 13)
@@ -179,7 +165,6 @@ class SettingsWindowController {
         self.updateIntervalTextField = textField
         inputStack.addArrangedSubview(textField)
 
-        // Степпер
         let stepper = NSStepper()
         stepper.minValue = AppConstants.minUpdateInterval
         stepper.maxValue = AppConstants.maxUpdateInterval
@@ -189,7 +174,6 @@ class SettingsWindowController {
         stepper.action = #selector(updateIntervalChangedStepper(_:))
         inputStack.addArrangedSubview(stepper)
         
-        // Метка "секунд"
         let secondsLabel = NSTextField(
             labelWithString: NSLocalizedString(
                 "settings.status.seconds",
@@ -199,14 +183,12 @@ class SettingsWindowController {
         secondsLabel.font = NSFont.systemFont(ofSize: 13)
         inputStack.addArrangedSubview(secondsLabel)
         
-        // Spacer
         let spacer = NSView()
         spacer.widthAnchor.constraint(equalToConstant: 1).isActive = true
         inputStack.addArrangedSubview(spacer)
         
         sectionStack.addArrangedSubview(inputStack)
         
-        // Описание
         let description = makeDescriptionLabel(
             NSLocalizedString(
                 "settings.status.description",
@@ -225,7 +207,6 @@ class SettingsWindowController {
         sectionStack.distribution = .fill
         sectionStack.spacing = 6
         
-        // Заголовок секции
         let sectionLabel = makeSectionLabel(
             NSLocalizedString(
                 "settings.notifications.title",
@@ -234,7 +215,6 @@ class SettingsWindowController {
         )
         sectionStack.addArrangedSubview(sectionLabel)
         
-        // Чекбокс
         let checkbox = NSButton(
             checkboxWithTitle: NSLocalizedString(
                 "settings.notifications.toggle",
@@ -248,7 +228,6 @@ class SettingsWindowController {
         self.showNotificationsCheckbox = checkbox
         sectionStack.addArrangedSubview(checkbox)
         
-        // Описание
         let description = makeDescriptionLabel(
             NSLocalizedString(
                 "settings.notifications.description",
@@ -257,7 +236,6 @@ class SettingsWindowController {
         )
         sectionStack.addArrangedSubview(description)
         
-        // Чекбокс для звуковой обратной связи
         let soundCheckbox = NSButton(
             checkboxWithTitle: NSLocalizedString(
                 "settings.notifications.soundFeedback",
@@ -270,7 +248,6 @@ class SettingsWindowController {
         soundCheckbox.font = NSFont.systemFont(ofSize: 13)
         sectionStack.addArrangedSubview(soundCheckbox)
         
-        // Описание для звуковой обратной связи
         let soundDescription = makeDescriptionLabel(
             NSLocalizedString(
                 "settings.notifications.soundFeedbackDescription",
@@ -289,7 +266,6 @@ class SettingsWindowController {
         sectionStack.distribution = .fill
         sectionStack.spacing = 6
         
-        // Заголовок секции
         let sectionLabel = makeSectionLabel(
             NSLocalizedString(
                 "settings.display.title",
@@ -298,7 +274,6 @@ class SettingsWindowController {
         )
         sectionStack.addArrangedSubview(sectionLabel)
         
-        // Чекбокс
         let checkbox = NSButton(
             checkboxWithTitle: NSLocalizedString(
                 "settings.display.showName",
@@ -312,7 +287,6 @@ class SettingsWindowController {
         self.showConnectionNameCheckbox = checkbox
         sectionStack.addArrangedSubview(checkbox)
         
-        // Описание
         let description = makeDescriptionLabel(
             NSLocalizedString(
                 "settings.display.description",
@@ -350,7 +324,6 @@ class SettingsWindowController {
         checkbox.state = settingsManager.launchAtLogin ? .on : .off
         checkbox.font = NSFont.systemFont(ofSize: 13)
         
-        // Отключаем чекбокс если функция недоступна (macOS < 13)
         if !settingsManager.isLaunchAtLoginAvailable {
             checkbox.isEnabled = false
         }
@@ -358,7 +331,6 @@ class SettingsWindowController {
         self.launchAtLoginCheckbox = checkbox
         sectionStack.addArrangedSubview(checkbox)
         
-        // Описание
         var descriptionText = NSLocalizedString(
             "settings.startup.description",
             comment: "Description for launch at login toggle"
@@ -390,7 +362,6 @@ class SettingsWindowController {
         mainStack.spacing = 14
         mainStack.translatesAutoresizingMaskIntoConstraints = false
         
-        // Секция: Toggle VPN
         let toggleSection = createToggleHotkeySection()
         mainStack.addArrangedSubview(toggleSection)
         
@@ -422,14 +393,12 @@ class SettingsWindowController {
         )
         sectionStack.addArrangedSubview(sectionLabel)
         
-        // Горизонтальный стек для кнопки горячей клавиши и кнопки очистки
         let inputStack = NSStackView()
         inputStack.orientation = .horizontal
         inputStack.alignment = .centerY
         inputStack.distribution = .fill
         inputStack.spacing = 8
         
-        // Кнопка для отображения/записи горячей клавиши (как в Shottr)
         let hotkeyButton = NSButton()
         hotkeyButton.bezelStyle = .recessed
         hotkeyButton.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
@@ -443,13 +412,11 @@ class SettingsWindowController {
         hotkeyButton.target = self
         hotkeyButton.action = #selector(hotkeyButtonClicked(_:))
         
-        // Устанавливаем текст кнопки
         updateHotkeyButtonTitle(hotkeyButton)
         
         self.hotkeyButton = hotkeyButton
         inputStack.addArrangedSubview(hotkeyButton)
         
-        // Кнопка очистки (если есть горячая клавиша)
         if settingsManager.hotkeyKeyCode != nil {
             let clearButton = NSButton()
             clearButton.title = ""
@@ -470,7 +437,6 @@ class SettingsWindowController {
         
         sectionStack.addArrangedSubview(inputStack)
 
-        // Inline-валидация (скрыта по умолчанию)
         let validationLabel = NSTextField(labelWithString: "")
         validationLabel.font = NSFont.systemFont(ofSize: 11)
         validationLabel.textColor = .systemRed
@@ -480,7 +446,6 @@ class SettingsWindowController {
         sectionStack.addArrangedSubview(validationLabel)
         self.hotkeyValidationLabel = validationLabel
 
-        // Описание
         let description = makeDescriptionLabel(
             NSLocalizedString(
                 "settings.hotkey.description",
@@ -543,7 +508,6 @@ class SettingsWindowController {
         hotkeyButton?.layer?.borderColor = NSColor.controlAccentColor.cgColor
         hotkeyButton?.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.08).cgColor
         
-        // Устанавливаем глобальный монитор событий
         globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { [weak self] event in
             self?.handleHotkeyEvent(event)
         }
@@ -560,10 +524,8 @@ class SettingsWindowController {
         if event.type == .keyDown {
             let keyCode = UInt32(event.keyCode)
             
-            // Escape отменяет запись
             if keyCode == KeyCode.escape.rawValue {
                 stopRecordingHotkey()
-                // Восстанавливаем предыдущее значение
                 if let button = hotkeyButton {
                     updateHotkeyButtonTitle(button)
                 }
@@ -573,7 +535,6 @@ class SettingsWindowController {
                 return
             }
             
-            // Преобразуем NSEvent модификаторы в Carbon модификаторы
             var carbonModifiers: UInt32 = 0
             if event.modifierFlags.contains(.command) {
                 carbonModifiers |= UInt32(cmdKey)
@@ -588,7 +549,6 @@ class SettingsWindowController {
                 carbonModifiers |= UInt32(controlKey)
             }
             
-            // Валидация: требуется хотя бы один модификатор
             if !hasRequiredModifiers(carbonModifiers) {
                 showHotkeyValidationError(
                     NSLocalizedString(
@@ -599,7 +559,6 @@ class SettingsWindowController {
                 return
             }
             
-            // Валидация: не используем системные комбинации
             if isSystemReservedHotkey(keyCode: keyCode, modifiers: carbonModifiers) {
                 showHotkeyValidationError(
                     NSLocalizedString(
@@ -613,7 +572,6 @@ class SettingsWindowController {
             recordedKeyCode = keyCode
             recordedModifiers = carbonModifiers
             
-            // Сохраняем и останавливаем запись
             stopRecordingHotkey()
             saveHotkey()
         }
@@ -621,36 +579,25 @@ class SettingsWindowController {
     
     // MARK: - Hotkey Validation
     
-    /// Проверяет, является ли комбинация системной/зарезервированной
+    /// Checks if the key combination is system-reserved.
     private func isSystemReservedHotkey(keyCode: UInt32, modifiers: UInt32) -> Bool {
-        // Системные комбинации macOS, которые нельзя переопределять
         let reservedHotkeys: [(keyCode: UInt32, modifiers: UInt32)] = [
-            // Cmd+Q - Quit
             (12, UInt32(cmdKey)),
-            // Cmd+W - Close Window
             (13, UInt32(cmdKey)),
-            // Cmd+Tab - App Switcher
             (48, UInt32(cmdKey)),
-            // Cmd+Space - Spotlight
             (49, UInt32(cmdKey)),
-            // Cmd+H - Hide
             (4, UInt32(cmdKey)),
-            // Cmd+M - Minimize
             (46, UInt32(cmdKey)),
-            // Cmd+, - Preferences (мы используем это для настроек)
             (43, UInt32(cmdKey)),
-            // Ctrl+Cmd+Q - Lock Screen
             (12, UInt32(cmdKey) | UInt32(controlKey)),
-            // Cmd+Shift+Q - Log Out
             (12, UInt32(cmdKey) | UInt32(shiftKey)),
         ]
         
         return reservedHotkeys.contains { $0.keyCode == keyCode && $0.modifiers == modifiers }
     }
     
-    /// Проверяет, содержит ли комбинация хотя бы один модификатор
+    /// Checks if the combination contains at least one required modifier.
     private func hasRequiredModifiers(_ modifiers: UInt32) -> Bool {
-        // Должен быть хотя бы Cmd, Ctrl или Option (Shift один - не считается)
         let hasCmd = modifiers & UInt32(cmdKey) != 0
         let hasCtrl = modifiers & UInt32(controlKey) != 0
         let hasOption = modifiers & UInt32(optionKey) != 0
@@ -677,7 +624,6 @@ class SettingsWindowController {
         }
         clearValidationMessage()
         
-        // Удаляем мониторы событий
         if let monitor = globalEventMonitor {
             NSEvent.removeMonitor(monitor)
             globalEventMonitor = nil
@@ -695,7 +641,6 @@ class SettingsWindowController {
         }
         HotkeyManager.shared.unregisterHotkey()
         
-        // Удаляем кнопку очистки из UI
         clearHotkeyButton?.removeFromSuperview()
         clearHotkeyButton = nil
     }
@@ -717,7 +662,6 @@ class SettingsWindowController {
         
         var parts: [String] = []
         
-        // Проверяем Carbon модификаторы
         if modifiers & UInt32(cmdKey) != 0 {
             parts.append("⌘")
         }
@@ -731,7 +675,6 @@ class SettingsWindowController {
             parts.append("⌃")
         }
         
-        // Преобразуем keyCode в символ
         if let keyChar = keyCodeToString(keyCode) {
             parts.append(keyChar)
         } else {
@@ -765,9 +708,7 @@ class SettingsWindowController {
     }
     
     private func updateHotkeyUI() {
-        // Обновляем кнопку очистки
         if settingsManager.hotkeyKeyCode != nil && clearHotkeyButton == nil {
-            // Добавляем кнопку очистки, если её нет
             if let inputStack = hotkeyButton?.superview as? NSStackView {
                 let clearButton = NSButton()
                 clearButton.title = "×"
@@ -781,7 +722,6 @@ class SettingsWindowController {
                 inputStack.addArrangedSubview(clearButton)
             }
         } else if settingsManager.hotkeyKeyCode == nil && clearHotkeyButton != nil {
-            // Удаляем кнопку очистки, если горячей клавиши нет
             clearHotkeyButton?.removeFromSuperview()
             clearHotkeyButton = nil
         }
@@ -796,7 +736,6 @@ class SettingsWindowController {
     
     deinit {
         NotificationCenter.default.removeObserver(self)
-        // Останавливаем запись напрямую
         isRecordingHotkey = false
         if let monitor = globalEventMonitor {
             NSEvent.removeMonitor(monitor)
@@ -817,7 +756,6 @@ class SettingsWindowController {
             sender.stringValue = String(format: "%.0f", validatedValue)
         }
         
-        // Используем VPNManager для обновления интервала, который обновит SettingsManager
         vpnManager.updateInterval = validatedValue
     }
     
@@ -838,7 +776,7 @@ class SettingsWindowController {
         registerHotkey()
     }
     
-    /// Показывает окно настроек и синхронизирует элементы управления с текущими значениями.
+    /// Shows the settings window and synchronizes controls with current values.
     func showWindow() {
         updateIntervalTextField?.stringValue = String(format: "%.0f", settingsManager.updateInterval)
         if let button = hotkeyButton {

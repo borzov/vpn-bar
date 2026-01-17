@@ -1,43 +1,43 @@
 import Foundation
 import Combine
 
-/// Интерфейс менеджера VPN-соединений.
+/// Protocol for managing VPN connections.
 @MainActor
 protocol VPNManagerProtocol: ObservableObject {
-    /// Список доступных соединений.
+    /// List of available connections.
     var connections: [VPNConnection] { get }
     
-    /// Флаг наличия активного соединения.
+    /// Flag indicating if there is an active connection.
     var hasActiveConnection: Bool { get }
     
-    /// Последняя ошибка загрузки списка соединений.
+    /// Last error from loading connections list.
     var loadingError: VPNError? { get }
     
-    /// Интервал обновления состояния соединений.
+    /// Connection status update interval.
     var updateInterval: TimeInterval { get set }
     
-    /// Загружает или перезагружает список доступных соединений.
-    /// - Parameter forceReload: Принудительно перезагрузить независимо от кэша.
+    /// Loads or reloads the list of available connections.
+    /// - Parameter forceReload: Force reload regardless of cache.
     func loadConnections(forceReload: Bool)
     
-    /// Инициирует подключение к указанному соединению.
+    /// Initiates connection to the specified connection.
     /// - Parameters:
-    ///   - connectionID: Идентификатор соединения.
-    ///   - retryCount: Количество попыток подключения (по умолчанию 3).
+    ///   - connectionID: Connection identifier.
+    ///   - retryCount: Number of connection attempts (default is 3).
     func connect(to connectionID: String, retryCount: Int)
     
-    /// Отключает указанное соединение.
-    /// - Parameter connectionID: Идентификатор соединения.
+    /// Disconnects the specified connection.
+    /// - Parameter connectionID: Connection identifier.
     func disconnect(from connectionID: String)
     
-    /// Переключает состояние соединения (подключить/отключить).
-    /// - Parameter connectionID: Идентификатор соединения.
+    /// Toggles connection state (connect/disconnect).
+    /// - Parameter connectionID: Connection identifier.
     func toggleConnection(_ connectionID: String)
     
-    /// Отключает все активные соединения.
+    /// Disconnects all active connections.
     func disconnectAll()
     
-    /// Освобождает ресурсы при завершении приложения.
+    /// Releases resources when the application terminates.
     func cleanup()
 }
 

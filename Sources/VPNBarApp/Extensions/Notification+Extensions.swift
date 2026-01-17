@@ -1,16 +1,16 @@
 import Foundation
 
 extension Notification.Name {
-    /// Уведомление об изменении горячей клавиши.
+    /// Notification about hotkey change.
     static let hotkeyDidChange = Notification.Name("HotkeyDidChange")
 
-    /// Уведомление об изменении интервала обновления.
+    /// Notification about update interval change.
     static let updateIntervalDidChange = Notification.Name("UpdateIntervalDidChange")
 
-    /// Уведомление об изменении отображения имени подключения.
+    /// Notification about connection name display change.
     static let showConnectionNameDidChange = Notification.Name("ShowConnectionNameDidChange")
 
-    /// Уведомление об изменении списка VPN-подключений.
+    /// Notification about VPN connections list change.
     static let vpnConnectionsDidChange = Notification.Name("VPNConnectionsDidChange")
 }
 

@@ -2,14 +2,14 @@ import Foundation
 @preconcurrency import UserNotifications
 import os.log
 
-/// Управляет запросами и доставкой уведомлений о состоянии VPN.
+/// Manages requests and delivery of VPN status notifications.
 @MainActor
 class NotificationManager: NSObject, NotificationManagerProtocol {
     static let shared = NotificationManager()
     
     private let logger = Logger(subsystem: AppConstants.bundleIdentifier, category: "Notifications")
     
-    /// Признак разрешения на отправку уведомлений.
+    /// Flag indicating authorization to send notifications.
     @Published private(set) var isAuthorized = false
     
     private override init() {
@@ -17,8 +17,8 @@ class NotificationManager: NSObject, NotificationManagerProtocol {
         UNUserNotificationCenter.current().delegate = self
     }
     
-    /// Запрашивает разрешение на уведомления
-    /// Для menu bar приложений использует provisional authorization
+    /// Requests authorization for notifications.
+    /// For menu bar applications uses provisional authorization.
     func requestAuthorization() {
         let center = UNUserNotificationCenter.current()
         
@@ -45,7 +45,7 @@ class NotificationManager: NSObject, NotificationManagerProtocol {
         }
     }
     
-    /// Проверяет текущий статус авторизации
+    /// Checks current authorization status.
     func checkAuthorizationStatus() {
         UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
             Task { @MainActor in
@@ -56,7 +56,7 @@ class NotificationManager: NSObject, NotificationManagerProtocol {
         }
     }
     
-    /// Отправляет уведомление о подключении/отключении VPN
+    /// Sends notification about VPN connection/disconnection.
     func sendVPNNotification(isConnected: Bool, connectionName: String?) {
         let center = UNUserNotificationCenter.current()
         
@@ -126,12 +126,12 @@ class NotificationManager: NSObject, NotificationManagerProtocol {
         }
     }
     
-    /// Удаляет все доставленные уведомления приложения
+    /// Removes all delivered application notifications.
     func removeAllDeliveredNotifications() {
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     }
     
-    /// Fallback на старый NSUserNotification API для совместимости
+    /// Fallback to legacy NSUserNotification API for compatibility.
     @available(macOS, deprecated: 11.0)
     private func sendLegacyNotification(isConnected: Bool, connectionName: String?) {
         let notification = NSUserNotification()
@@ -174,7 +174,7 @@ class NotificationManager: NSObject, NotificationManagerProtocol {
 
 extension NotificationManager: UNUserNotificationCenterDelegate {
     
-    /// Позволяет показывать уведомления даже когда приложение активно
+    /// Allows showing notifications even when application is active.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
@@ -183,7 +183,7 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         completionHandler([.banner, .sound])
     }
     
-    /// Обрабатывает нажатие на уведомление
+    /// Handles notification tap.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,

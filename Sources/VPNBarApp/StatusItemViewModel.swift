@@ -1,10 +1,10 @@
 import AppKit
 import Combine
 
-/// Вью-модель для отображения состояния VPN в статус-баре.
+/// View model for displaying VPN state in the status bar.
 @MainActor
 final class StatusItemViewModel {
-    /// Данные для иконки и тултипа статус-бара.
+    /// Data for status bar icon and tooltip.
     struct ImageContent {
         let image: NSImage?
         let toolTip: String
@@ -12,14 +12,14 @@ final class StatusItemViewModel {
         let connectionName: String?
     }
 
-    /// Состояние статус-бара.
+    /// Status bar state.
     enum State {
         case connecting(ImageContent)
         case connected(ImageContent)
         case disconnected(ImageContent)
     }
 
-    /// Текущее состояние, публикуемое для обновления UI.
+    /// Current state published for UI updates.
     @Published private(set) var state: State
 
     private static var cachedConnectedImage: NSImage?
@@ -56,10 +56,8 @@ final class StatusItemViewModel {
                 }
                 .store(in: &cancellables)
         } else {
-            // Fallback for protocol without Combine - use timer-based polling
             setupFallbackTimer()
 
-            // Also subscribe to showConnectionNameDidChange
             NotificationCenter.default
                 .publisher(for: .showConnectionNameDidChange)
                 .receive(on: DispatchQueue.main)
@@ -71,8 +69,6 @@ final class StatusItemViewModel {
     }
 
     private func setupFallbackTimer() {
-        // Use longer interval for fallback polling to reduce overhead
-        // Matches the minimum update interval from AppConstants
         fallbackTimer = Timer.scheduledTimer(withTimeInterval: AppConstants.minUpdateInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.updateStateFromManager()
@@ -92,11 +88,11 @@ final class StatusItemViewModel {
         fallbackTimer = nil
     }
 
-    /// Собирает состояние статус-бара на основе подключений и настроек.
+    /// Builds status bar state based on connections and settings.
     /// - Parameters:
-    ///   - connections: Текущие VPN-подключения.
-    ///   - settings: Настройки отображения.
-    /// - Returns: Итоговое состояние статус-бара.
+    ///   - connections: Current VPN connections.
+    ///   - settings: Display settings.
+    /// - Returns: Final status bar state.
     private static func makeState(
         connections: [VPNConnection],
         settings: SettingsManagerProtocol

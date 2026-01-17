@@ -1,21 +1,21 @@
 import Foundation
 import SystemConfiguration
 
-/// Модель VPN-подключения, используемая для отображения и управления статусом.
+/// VPN connection model used for displaying and managing status.
 struct VPNConnection: Identifiable, Equatable, Hashable {
     let id: String
     let name: String
     let serviceID: String
     var status: VPNStatus
 
-    /// Текущее состояние VPN-подключения.
+    /// Current VPN connection state.
     enum VPNStatus: Equatable, Hashable {
         case disconnected
         case connecting
         case connected
         case disconnecting
 
-        /// Возвращает `true`, когда соединение активно или устанавливается.
+        /// Returns `true` when connection is active or connecting.
         var isActive: Bool {
             self == .connected || self == .connecting
         }

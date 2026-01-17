@@ -1,26 +1,26 @@
 import Foundation
 
-/// Типизированные ошибки VPN-менеджера.
+/// Typed errors for VPN manager.
 enum VPNError: LocalizedError, Equatable {
-    /// Отсутствуют настроенные VPN-конфигурации в системе.
+    /// No VPN configurations configured in the system.
     case noConfigurations
     
-    /// Подключение с указанным идентификатором не найдено.
+    /// Connection with specified identifier not found.
     case connectionNotFound(id: String)
     
-    /// Сессия для указанного подключения не найдена.
+    /// Session for specified connection not found.
     case sessionNotFound(id: String)
     
-    /// Не удалось создать сессию для подключения.
+    /// Failed to create session for connection.
     case sessionCreationFailed(id: String)
     
-    /// Не удалось загрузить NetworkExtension framework.
+    /// Failed to load NetworkExtension framework.
     case frameworkLoadFailed(reason: String)
     
-    /// Ошибка подключения к VPN.
+    /// VPN connection error.
     case connectionFailed(underlying: String?)
     
-    /// Shared manager недоступен.
+    /// Shared manager unavailable.
     case sharedManagerUnavailable
     
     var errorDescription: String? {

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Статистика использования VPN.
+/// VPN usage statistics.
 struct VPNStatistics: Codable, Equatable {
     var totalConnections: Int = 0
     var totalDisconnections: Int = 0
@@ -8,17 +8,14 @@ struct VPNStatistics: Codable, Equatable {
     var lastConnectionDate: Date?
     var lastDisconnectionDate: Date?
     var longestSessionDuration: TimeInterval = 0
-    /// Shortest session duration. Uses nil instead of .infinity for cleaner handling.
-    var shortestSessionDuration: TimeInterval? = nil
-
-    /// Средняя продолжительность сессии в секундах.
+    /// Average session duration in seconds.
     var averageSessionDuration: TimeInterval {
         guard totalConnections > 0 else { return 0 }
         return totalConnectionTime / Double(totalConnections)
     }
 }
 
-/// Менеджер статистики использования VPN.
+/// VPN usage statistics manager.
 @MainActor
 final class StatisticsManager {
     static let shared = StatisticsManager()
@@ -43,12 +40,12 @@ final class StatisticsManager {
     
     private init() {}
     
-    /// Получает текущую статистику.
+    /// Gets current statistics.
     func getStatistics() -> VPNStatistics {
         return statistics
     }
     
-    /// Записывает начало подключения.
+    /// Records connection start.
     func recordConnection() {
         currentSessionStart = Date()
         var stats = statistics
@@ -57,7 +54,7 @@ final class StatisticsManager {
         statistics = stats
     }
     
-    /// Записывает окончание подключения.
+    /// Records connection end.
     func recordDisconnection() {
         guard let start = currentSessionStart else { return }
 
@@ -81,7 +78,7 @@ final class StatisticsManager {
         currentSessionStart = nil
     }
     
-    /// Сбрасывает статистику.
+    /// Resets statistics.
     func resetStatistics() {
         statistics = VPNStatistics()
         currentSessionStart = nil

@@ -3,7 +3,7 @@ import AppKit
 import ServiceManagement
 import os.log
 
-/// Управляет пользовательскими настройками приложения.
+/// Manages application user settings.
 @MainActor
 class SettingsManager: SettingsManagerProtocol {
     static let shared = SettingsManager()
@@ -20,7 +20,7 @@ class SettingsManager: SettingsManagerProtocol {
     
     private init() {}
     
-    /// Интервал обновления статусов VPN в секундах.
+    /// VPN status update interval in seconds.
     var updateInterval: TimeInterval {
         get {
             let saved = userDefaults.double(forKey: updateIntervalKey)
@@ -33,7 +33,7 @@ class SettingsManager: SettingsManagerProtocol {
         }
     }
     
-    /// Код клавиши для глобального хоткея.
+    /// Global hotkey key code.
     var hotkeyKeyCode: UInt32? {
         get {
             let value = userDefaults.integer(forKey: hotkeyKeyCodeKey)
@@ -49,7 +49,7 @@ class SettingsManager: SettingsManagerProtocol {
         }
     }
     
-    /// Модификаторы для глобального хоткея.
+    /// Global hotkey modifiers.
     var hotkeyModifiers: UInt32? {
         get {
             let value = userDefaults.integer(forKey: hotkeyModifiersKey)
@@ -65,13 +65,13 @@ class SettingsManager: SettingsManagerProtocol {
         }
     }
     
-    /// Сохраняет комбинацию горячей клавиши.
+    /// Saves hotkey combination.
     func saveHotkey(keyCode: UInt32?, modifiers: UInt32?) {
         hotkeyKeyCode = keyCode
         hotkeyModifiers = modifiers
     }
     
-    /// Флаг отображения системных уведомлений.
+    /// Flag for showing system notifications.
     var showNotifications: Bool {
         get {
             if userDefaults.object(forKey: showNotificationsKey) == nil {
@@ -84,7 +84,7 @@ class SettingsManager: SettingsManagerProtocol {
         }
     }
     
-    /// Флаг показа имени подключения в тултипе.
+    /// Flag for showing connection name in tooltip.
     var showConnectionName: Bool {
         get {
             if userDefaults.object(forKey: showConnectionNameKey) == nil {
@@ -98,7 +98,7 @@ class SettingsManager: SettingsManagerProtocol {
         }
     }
     
-    /// Флаг включения звуковой обратной связи.
+    /// Flag for enabling sound feedback.
     var soundFeedbackEnabled: Bool {
         get {
             if userDefaults.object(forKey: soundFeedbackEnabledKey) == nil {
@@ -111,7 +111,7 @@ class SettingsManager: SettingsManagerProtocol {
         }
     }
     
-    /// Признак автозапуска приложения при входе в систему.
+    /// Flag for launching application at login.
     var launchAtLogin: Bool {
         get {
             if #available(macOS 13.0, *) {
@@ -145,7 +145,7 @@ class SettingsManager: SettingsManagerProtocol {
         }
     }
     
-    /// Проверяет доступность функции автозапуска на текущей версии macOS.
+    /// Checks if launch at login is available on current macOS version.
     var isLaunchAtLoginAvailable: Bool {
         if #available(macOS 13.0, *) {
             return true
@@ -155,12 +155,12 @@ class SettingsManager: SettingsManagerProtocol {
     }
     
     @available(macOS, deprecated: 13.0, message: "Use SMAppService on macOS 13+")
-    /// Упрощенный fallback для macOS 12, сохраняющий пожелание автозапуска.
+    /// Simplified fallback for macOS 12, saves launch at login preference.
     private func setLaunchAtLoginLegacy(enabled: Bool) {
         userDefaults.set(enabled, forKey: launchAtLoginKey)
     }
     
-    /// Идентификатор последнего использованного VPN-подключения.
+    /// Identifier of the last used VPN connection.
     var lastUsedConnectionID: String? {
         get {
             return userDefaults.string(forKey: lastUsedConnectionIDKey)

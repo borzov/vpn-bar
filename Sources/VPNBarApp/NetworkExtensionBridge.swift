@@ -1,7 +1,7 @@
 import Foundation
 import SystemConfiguration
 
-/// Обертка для приватных C API из `libsystem_networkextension.dylib`.
+/// Wrapper for private C APIs from `libsystem_networkextension.dylib`.
 typealias ne_session_t = OpaquePointer
 typealias ne_session_status_t = Int32
 typealias ne_session_event_t = Int32

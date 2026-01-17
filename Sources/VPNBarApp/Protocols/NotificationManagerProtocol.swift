@@ -1,24 +1,24 @@
 import Foundation
 
-/// Интерфейс менеджера уведомлений.
+/// Protocol for managing notifications.
 @MainActor
 protocol NotificationManagerProtocol: ObservableObject {
-    /// Признак разрешения на отправку уведомлений.
+    /// Flag indicating authorization to send notifications.
     var isAuthorized: Bool { get }
     
-    /// Запрашивает разрешение на уведомления.
+    /// Requests authorization for notifications.
     func requestAuthorization()
     
-    /// Проверяет текущий статус авторизации.
+    /// Checks current authorization status.
     func checkAuthorizationStatus()
     
-    /// Отправляет уведомление о состоянии VPN.
+    /// Sends VPN status notification.
     /// - Parameters:
-    ///   - isConnected: Состояние подключения.
-    ///   - connectionName: Имя подключения (опционально).
+    ///   - isConnected: Connection state.
+    ///   - connectionName: Connection name (optional).
     func sendVPNNotification(isConnected: Bool, connectionName: String?)
     
-    /// Удаляет все доставленные уведомления.
+    /// Removes all delivered notifications.
     func removeAllDeliveredNotifications()
 }
 

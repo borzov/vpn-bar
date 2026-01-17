@@ -1,41 +1,41 @@
 import Foundation
 
-/// Общие константы приложения.
+/// Application-wide constants.
 enum AppConstants {
-    /// Идентификатор bundle по умолчанию.
+    /// Default bundle identifier.
     static let bundleIdentifier = Bundle.main.bundleIdentifier ?? "com.borzov.VPNBar"
     
-    /// Минимальный интервал обновления статуса в секундах.
+    /// Minimum status update interval in seconds.
     static let minUpdateInterval: TimeInterval = 5.0
     
-    /// Максимальный интервал обновления статуса в секундах.
+    /// Maximum status update interval in seconds.
     static let maxUpdateInterval: TimeInterval = 120.0
     
-    /// Интервал обновления статуса по умолчанию в секундах.
+    /// Default status update interval in seconds.
     static let defaultUpdateInterval: TimeInterval = 15.0
     
-    /// Интервал обновления статуса сессий в секундах.
+    /// Session status update interval in seconds.
     static let sessionStatusUpdateInterval: TimeInterval = 5.0
     
-    /// Интервал перезагрузки списка VPN подключений в секундах.
+    /// VPN connections list reload interval in seconds.
     static let connectionsListReloadInterval: TimeInterval = 30.0
     
-    /// Интервал анимации подключения в секундах.
+    /// Connection animation interval in seconds.
     static let connectingAnimationInterval: TimeInterval = 0.4
     
-    /// Максимальное количество попыток подключения по умолчанию.
+    /// Default maximum number of connection attempts.
     static let defaultRetryCount: Int = 3
     
-    /// Базовая задержка для экспоненциальной задержки между попытками (в секундах).
+    /// Base delay for exponential backoff between attempts in seconds.
     static let retryBaseDelay: TimeInterval = 1.0
     
-    /// Таймаут для операций подключения/отключения (в секундах).
+    /// Timeout for connection/disconnection operations in seconds.
     static let connectionTimeout: TimeInterval = 30.0
     
-    /// Задержка перед отправкой уведомления о смене статуса (в секундах).
+    /// Delay before sending status change notification in seconds.
     static let notificationDelay: TimeInterval = 0.5
     
-    /// URL-адреса, используемые в приложении.
+    /// URLs used in the application.
     enum URLs {
         static let repository = URL(string: "https://github.com/borzov/vpn-bar")!
         static let networkPreferences = URL(string: "x-apple.systempreferences:com.apple.Network-Settings.extension")!

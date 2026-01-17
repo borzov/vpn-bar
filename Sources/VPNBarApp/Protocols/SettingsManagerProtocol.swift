@@ -1,39 +1,39 @@
 import Foundation
 
-/// Интерфейс управления пользовательскими настройками приложения.
+/// Protocol for managing application user settings.
 @MainActor
 protocol SettingsManagerProtocol {
-    /// Интервал обновления статуса соединений в секундах.
+    /// Connection status update interval in seconds.
     var updateInterval: TimeInterval { get set }
     
-    /// Код клавиши глобального хоткея.
+    /// Global hotkey key code.
     var hotkeyKeyCode: UInt32? { get set }
     
-    /// Модификаторы для глобального хоткея.
+    /// Global hotkey modifiers.
     var hotkeyModifiers: UInt32? { get set }
     
-    /// Флаг отображения системных уведомлений.
+    /// Flag for showing system notifications.
     var showNotifications: Bool { get set }
     
-    /// Флаг показа имени подключения в тултипе.
+    /// Flag for showing connection name in tooltip.
     var showConnectionName: Bool { get set }
     
-    /// Флаг включения звуковой обратной связи.
+    /// Flag for enabling sound feedback.
     var soundFeedbackEnabled: Bool { get set }
     
-    /// Признак автозапуска приложения при входе в систему.
+    /// Flag for launching application at login.
     var launchAtLogin: Bool { get set }
     
-    /// Признак доступности функции автозапуска на текущей версии macOS.
+    /// Flag indicating if launch at login is available on current macOS version.
     var isLaunchAtLoginAvailable: Bool { get }
     
-    /// Сохраняет комбинацию горячей клавиши.
+    /// Saves hotkey combination.
     /// - Parameters:
-    ///   - keyCode: Код клавиши.
-    ///   - modifiers: Модификаторы клавиш.
+    ///   - keyCode: Key code.
+    ///   - modifiers: Key modifiers.
     func saveHotkey(keyCode: UInt32?, modifiers: UInt32?)
     
-    /// Идентификатор последнего использованного VPN-подключения.
+    /// Identifier of the last used VPN connection.
     var lastUsedConnectionID: String? { get set }
 }
 

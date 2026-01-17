@@ -1,7 +1,7 @@
 import AppKit
 import Combine
 
-/// Контроллер меню статус-бара.
+/// Status bar menu controller.
 @MainActor
 class MenuController {
     static let shared = MenuController()
@@ -22,8 +22,8 @@ class MenuController {
         observeConnections()
     }
     
-    /// Показывает меню для указанного элемента статус-бара.
-    /// - Parameter statusItem: Элемент статус-бара, для которого строится меню.
+    /// Shows menu for the specified status bar item.
+    /// - Parameter statusItem: Status bar item for which to build the menu.
     func showMenu(for statusItem: NSStatusItem?) {
         self.statusItem = statusItem
         buildMenu()
@@ -39,12 +39,12 @@ class MenuController {
         menu?.popUp(positioning: nil, at: screenPoint, in: nil)
     }
     
-    /// Перестраивает меню с актуальными данными.
+    /// Rebuilds menu with current data.
     func updateMenu() {
         buildMenu()
     }
     
-    /// Создает меню для указанного NSMenu (для тестирования).
+    /// Creates menu for the specified NSMenu (for testing).
     func buildMenu(menu: NSMenu) {
         buildMenu()
         menu.items = self.menu?.items ?? []
@@ -188,7 +188,6 @@ class MenuController {
     }
     
     private func observeConnections() {
-        // Используем VPNManager напрямую для доступа к @Published
         if let vpnManager = vpnManager as? VPNManager {
             vpnManager.$connections
                 .receive(on: DispatchQueue.main)
@@ -197,7 +196,6 @@ class MenuController {
                 }
                 .store(in: &cancellables)
         } else {
-            // Fallback: обновляем меню один раз
             updateMenu()
         }
     }

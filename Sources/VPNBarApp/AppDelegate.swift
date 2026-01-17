@@ -1,7 +1,7 @@
 import AppKit
 import os.log
 
-/// Делегат приложения, отвечающий за инициализацию и управление жизненным циклом.
+/// Application delegate responsible for initialization and lifecycle management.
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBarController: StatusBarController?
     

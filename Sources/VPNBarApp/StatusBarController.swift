@@ -2,7 +2,7 @@ import AppKit
 import Combine
 import os.log
 
-/// Управляет элементом статус-бара и его визуальным состоянием.
+/// Manages status bar item and its visual state.
 @MainActor
 class StatusBarController {
     static var shared: StatusBarController?
@@ -118,7 +118,6 @@ class StatusBarController {
             button.image = image
             button.contentTintColor = nil
         } else {
-            // Fallback на эмодзи
             button.title = animationFrame % 2 == 0 ? "🔓" : "🔒"
             button.contentTintColor = nil
         }
@@ -203,7 +202,7 @@ class StatusBarController {
         }
     }
     
-    /// Отправляет системное уведомление об изменении статуса.
+    /// Sends system notification about status change.
     private func notifyStatusChange(isNowActive: Bool, connectionName: String?) {
         Task { @MainActor in
             NotificationManager.shared.sendVPNNotification(

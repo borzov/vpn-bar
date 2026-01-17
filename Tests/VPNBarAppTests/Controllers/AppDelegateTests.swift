@@ -27,9 +27,9 @@ final class AppDelegateTests: XCTestCase {
     }
     
     func test_applicationDidFinishLaunching_canBeCalled() {
-        // Пропускаем этот тест, так как он требует инициализации NotificationManager,
-        // который требует системных API, недоступных в тестовом окружении
-        // В реальном приложении это работает корректно
+        // Skip this test as it requires NotificationManager initialization,
+        // which requires system APIs unavailable in test environment.
+        // In the real application this works correctly.
         XCTAssertTrue(true)
     }
     
