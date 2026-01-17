@@ -61,15 +61,9 @@ To update:
 brew upgrade --cask vpn-bar
 ```
 
-**Note:** Since this app is not signed with an Apple Developer certificate, you may need to run the following command after installation if you see a "damaged app" error:
+**Note:** The Cask applies `xattr -cr` automatically after installation, so extra steps are usually not needed for first launch. **Homebrew is the recommended installation method** to avoid manual quarantine removal.
 
-```bash
-# If installed to /Applications
-sudo xattr -cr /Applications/VPNBarApp.app
-
-# If installed to ~/Applications
-sudo xattr -cr ~/Applications/VPNBarApp.app
-```
+If the app is still blocked or shows "damaged" after `brew install --cask vpn-bar`, run `sudo xattr -cr /Applications/VPNBarApp.app` (or `~/Applications/VPNBarApp.app`) and, if macOS shows a security message, go to **System Settings → Privacy & Security** and click **Open Anyway**.
 
 ### Manual Installation
 
@@ -84,25 +78,48 @@ sudo xattr -cr ~/Applications/VPNBarApp.app
 
 **Note:** If macOS shows a security warning, open **System Settings** → **Privacy & Security** and click **Open Anyway** next to the message about the app.
 
-### Bypassing macOS Gatekeeper
+### App doesn't start or no process appears
 
-If the app is blocked by macOS security (Gatekeeper), follow these steps:
+If the app does not start and no process appears in Activity Monitor, try the following.
 
-1. Open **Terminal**
-2. Run the command:
-   ```bash
-   sudo xattr -cr /Applications/VPNBarApp.app
-   ```
-3. If that doesn't work, try:
-   ```bash
-   sudo xattr -rd com.apple.quarantine /Applications/VPNBarApp.app
-   ```
-4. Then try launching the app again
+#### Installation via Homebrew (recommended)
 
-Alternative method:
-1. Open **System Settings** → **Privacy & Security**
-2. Find the message about the blocked app
-3. Click **Open Anyway**
+The Cask applies `xattr -cr` after installation. If the app still does not start:
+
+- Check for quarantine: `xattr -l /Applications/VPNBarApp.app` (or `~/Applications/VPNBarApp.app`). If `com.apple.quarantine` is present, run: `sudo xattr -cr /Applications/VPNBarApp.app`
+- Open **System Settings → Privacy & Security** and, if there is a message about a blocked app, click **Open Anyway**
+
+#### Manual installation from ZIP
+
+Before the **first** launch, run:
+
+```bash
+sudo xattr -cr /Applications/VPNBarApp.app
+```
+
+If macOS still blocks the app, open **System Settings → Privacy & Security** and click **Open Anyway**.
+
+#### Running from Terminal for diagnosis
+
+If the process still does not appear:
+
+```bash
+/Applications/VPNBarApp.app/Contents/MacOS/VPNBarApp
+```
+
+Watch stderr. Alternatively: `open /Applications/VPNBarApp.app` and, if it crashes, check **Console.app** or run:
+
+```bash
+log show --predicate 'processImagePath contains "VPNBar"' --last 5m
+```
+
+#### Requirements
+
+- macOS 12.0 (Monterey) or later. On Intel Macs, a universal (x86_64) build is required; recent releases provide it.
+
+#### App runs but nothing is visible
+
+This app is **menu bar only**: there is no window and no Dock icon. Look for the icon on the **right side of the menu bar** (near the clock, Wi‑Fi, battery).
 
 ## Usage
 
