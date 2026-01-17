@@ -63,14 +63,14 @@ if [ -f "$PROJECT_DIR/VPNBarApp.icns" ]; then
 fi
 
 # Копируем локализованные ресурсы
-RESOURCE_BUNDLE=$(find "$PROJECT_DIR/.build" -type d -name "*VPNBarApp*.bundle" | grep release | head -1)
-if [ -n "$RESOURCE_BUNDLE" ] && [ -d "$RESOURCE_BUNDLE" ]; then
+SOURCE_RESOURCES_DIR="$PROJECT_DIR/Sources/VPNBarApp/Resources"
+if [ -d "$SOURCE_RESOURCES_DIR" ]; then
     echo -e "${GREEN}Копирование локализованных ресурсов...${NC}"
-    cp -R "$RESOURCE_BUNDLE"/*.lproj "$RESOURCES_DIR/" 2>/dev/null || true
-    # Альтернативный способ - копируем все .lproj директории
-    if [ -z "$(ls -A "$RESOURCES_DIR"/*.lproj 2>/dev/null)" ]; then
-        find "$RESOURCE_BUNDLE" -type d -name "*.lproj" -exec cp -R {} "$RESOURCES_DIR/" \;
-    fi
+    # Копируем все .lproj директории из исходников
+    find "$SOURCE_RESOURCES_DIR" -type d -name "*.lproj" -exec cp -R {} "$RESOURCES_DIR/" \;
+    echo -e "${GREEN}Скопировано локализаций: $(find "$RESOURCES_DIR" -type d -name "*.lproj" | wc -l | tr -d ' ')${NC}"
+else
+    echo -e "${YELLOW}Предупреждение: Директория ресурсов не найдена: $SOURCE_RESOURCES_DIR${NC}"
 fi
 
 # Создаем entitlements если нужно
@@ -120,6 +120,12 @@ cat > "$CONTENTS_DIR/Info.plist" <<EOF
     <string>0.7.0</string>
     <key>CFBundleVersion</key>
     <string>430</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>en</string>
+        <string>ru</string>
+        <string>zh-Hans</string>
+    </array>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
     <key>LSUIElement</key>
