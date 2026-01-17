@@ -3,7 +3,7 @@ import AppKit
 /// About settings view component.
 @MainActor
 final class AboutSettingsView: NSView {
-    init(frame: NSRect = .zero) {
+    override init(frame: NSRect = .zero) {
         super.init(frame: frame)
         setupView()
     }

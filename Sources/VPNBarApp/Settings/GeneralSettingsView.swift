@@ -3,7 +3,7 @@ import AppKit
 /// General settings view component.
 @MainActor
 final class GeneralSettingsView: NSView {
-    private let settingsManager: SettingsManagerProtocol
+    private var settingsManager: SettingsManagerProtocol
     private let vpnManager: VPNManagerProtocol
     
     var updateIntervalTextField: NSTextField?
