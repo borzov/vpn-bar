@@ -2,15 +2,6 @@ import Foundation
 import Darwin
 import os.log
 
-/// Wrapper for handler block to safely pass to Objective-C runtime.
-private class HandlerWrapper: NSObject {
-    let handler: @convention(block) (NSArray?, NSError?) -> Void
-    
-    init(_ handler: @escaping @convention(block) (NSArray?, NSError?) -> Void) {
-        self.handler = handler
-    }
-}
-
 /// Loads VPN configurations from the system.
 @MainActor
 final class VPNConfigurationLoader: VPNConfigurationLoaderProtocol {
@@ -85,7 +76,8 @@ final class VPNConfigurationLoader: VPNConfigurationLoaderProtocol {
         }
         
         // Create handler block with proper signature
-        let handler: @convention(block) (NSArray?, NSError?) -> Void = { configurations, error in
+        let handler: @convention(block) (NSArray?, NSError?) -> Void = { [weak self] configurations, error in
+            guard let self = self else { return }
             Task { @MainActor in
                 if let error = error {
                     completion(.failure(.frameworkLoadFailed(reason: error.localizedDescription)))
@@ -102,23 +94,23 @@ final class VPNConfigurationLoader: VPNConfigurationLoaderProtocol {
             }
         }
         
-        // Use HandlerWrapper to safely pass block to Objective-C runtime
-        let handlerWrapper = HandlerWrapper(handler)
-        let handlerObject = handlerWrapper as AnyObject
-        
-        // Validate method signature before calling
-        let methodSignature = manager.method(for: selector)
-        guard methodSignature != nil else {
+        // Get method implementation and call directly (same approach as v0.6.0)
+        // The block is automatically retained by Objective-C runtime when passed
+        guard let imp = manager.method(for: selector) else {
             completion(.failure(.sharedManagerUnavailable))
             return
         }
         
-        // Perform selector with arguments using safer API
-        _ = manager.perform(
-            selector,
-            with: sessionQueue,
-            with: handlerObject
-        )
+        // Convert block to AnyObject for passing to Objective-C
+        // Note: This is safe because @convention(block) closures are automatically
+        // retained by Objective-C runtime when passed as parameters
+        let block = unsafeBitCast(handler, to: AnyObject.self)
+        let queue = self.sessionQueue
+        
+        typealias MethodType = @convention(c) (AnyObject, Selector, DispatchQueue, AnyObject) -> Void
+        let method = unsafeBitCast(imp, to: MethodType.self)
+        
+        method(manager, selector, queue, block)
     }
     
     private func processConfigurations(_ configurations: NSArray) -> [VPNConnection] {
