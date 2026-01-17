@@ -36,7 +36,8 @@ class HotkeyManager: HotkeyManagerProtocol {
             eventKind: OSType(kEventHotKeyPressed)
         )
 
-        let userData = Unmanaged.passUnretained(self).toOpaque()
+        // Use passRetained to ensure manager stays alive during event handler lifetime
+        let userData = Unmanaged.passRetained(self).toOpaque()
 
         let eventHandlerUPP: EventHandlerUPP = { (nextHandler, theEvent, userData) -> OSStatus in
             guard let userData = userData else {
@@ -55,9 +56,7 @@ class HotkeyManager: HotkeyManagerProtocol {
             )
 
             if err == noErr {
-                // Note: This is an unretained reference - the manager must remain valid
-                // while the event handler is installed. The isValid flag provides
-                // additional safety in case of unexpected deallocation.
+                // Use takeUnretainedValue since we retained in passRetained
                 let manager = Unmanaged<HotkeyManager>.fromOpaque(userData).takeUnretainedValue()
 
                 // Safety check: ensure manager hasn't been invalidated
@@ -148,6 +147,11 @@ class HotkeyManager: HotkeyManagerProtocol {
 
         if let handler = eventHandler {
             RemoveEventHandler(handler)
+            
+            // Release the retained reference from passRetained
+            // This balances the retain from setupEventHandler
+            Unmanaged.passUnretained(self).release()
+            
             eventHandler = nil
         }
         isSetup = false

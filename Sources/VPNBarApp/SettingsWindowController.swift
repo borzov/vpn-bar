@@ -153,13 +153,12 @@ class SettingsWindowController {
         sectionStack.spacing = 6
         
         // Заголовок секции
-        let sectionLabel = NSTextField(
-            labelWithString: NSLocalizedString(
+        let sectionLabel = makeSectionLabel(
+            NSLocalizedString(
                 "settings.status.title",
                 comment: "Status update section title"
             )
         )
-        sectionLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         sectionStack.addArrangedSubview(sectionLabel)
         
         // Горизонтальный стек для поля ввода
@@ -208,15 +207,12 @@ class SettingsWindowController {
         sectionStack.addArrangedSubview(inputStack)
         
         // Описание
-        let description = NSTextField(
-            wrappingLabelWithString: NSLocalizedString(
+        let description = makeDescriptionLabel(
+            NSLocalizedString(
                 "settings.status.description",
                 comment: "Description for status update interval"
             )
         )
-        description.font = NSFont.systemFont(ofSize: 11)
-        description.textColor = .secondaryLabelColor
-        description.preferredMaxLayoutWidth = 524
         sectionStack.addArrangedSubview(description)
         
         return sectionStack
@@ -230,13 +226,12 @@ class SettingsWindowController {
         sectionStack.spacing = 6
         
         // Заголовок секции
-        let sectionLabel = NSTextField(
-            labelWithString: NSLocalizedString(
+        let sectionLabel = makeSectionLabel(
+            NSLocalizedString(
                 "settings.notifications.title",
                 comment: "Notifications section title"
             )
         )
-        sectionLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         sectionStack.addArrangedSubview(sectionLabel)
         
         // Чекбокс
@@ -254,15 +249,12 @@ class SettingsWindowController {
         sectionStack.addArrangedSubview(checkbox)
         
         // Описание
-        let description = NSTextField(
-            wrappingLabelWithString: NSLocalizedString(
+        let description = makeDescriptionLabel(
+            NSLocalizedString(
                 "settings.notifications.description",
                 comment: "Description for notifications toggle"
             )
         )
-        description.font = NSFont.systemFont(ofSize: 11)
-        description.textColor = .secondaryLabelColor
-        description.preferredMaxLayoutWidth = 524
         sectionStack.addArrangedSubview(description)
         
         // Чекбокс для звуковой обратной связи
@@ -279,15 +271,12 @@ class SettingsWindowController {
         sectionStack.addArrangedSubview(soundCheckbox)
         
         // Описание для звуковой обратной связи
-        let soundDescription = NSTextField(
-            wrappingLabelWithString: NSLocalizedString(
+        let soundDescription = makeDescriptionLabel(
+            NSLocalizedString(
                 "settings.notifications.soundFeedbackDescription",
                 comment: "Description for sound feedback toggle"
             )
         )
-        soundDescription.font = NSFont.systemFont(ofSize: 11)
-        soundDescription.textColor = .secondaryLabelColor
-        soundDescription.preferredMaxLayoutWidth = 524
         sectionStack.addArrangedSubview(soundDescription)
         
         return sectionStack
@@ -301,13 +290,12 @@ class SettingsWindowController {
         sectionStack.spacing = 6
         
         // Заголовок секции
-        let sectionLabel = NSTextField(
-            labelWithString: NSLocalizedString(
+        let sectionLabel = makeSectionLabel(
+            NSLocalizedString(
                 "settings.display.title",
                 comment: "Display section title"
             )
         )
-        sectionLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         sectionStack.addArrangedSubview(sectionLabel)
         
         // Чекбокс
@@ -325,15 +313,12 @@ class SettingsWindowController {
         sectionStack.addArrangedSubview(checkbox)
         
         // Описание
-        let description = NSTextField(
-            wrappingLabelWithString: NSLocalizedString(
+        let description = makeDescriptionLabel(
+            NSLocalizedString(
                 "settings.display.description",
                 comment: "Description for showing connection name"
             )
         )
-        description.font = NSFont.systemFont(ofSize: 11)
-        description.textColor = .secondaryLabelColor
-        description.preferredMaxLayoutWidth = 524
         sectionStack.addArrangedSubview(description)
         
         return sectionStack
@@ -346,13 +331,12 @@ class SettingsWindowController {
         sectionStack.distribution = .fill
         sectionStack.spacing = 6
         
-        let sectionLabel = NSTextField(
-            labelWithString: NSLocalizedString(
+        let sectionLabel = makeSectionLabel(
+            NSLocalizedString(
                 "settings.startup.title",
                 comment: "Startup section title"
             )
         )
-        sectionLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         sectionStack.addArrangedSubview(sectionLabel)
         
         let checkbox = NSButton(
@@ -430,13 +414,12 @@ class SettingsWindowController {
         sectionStack.distribution = .fill
         sectionStack.spacing = 8
         
-        let sectionLabel = NSTextField(
-            labelWithString: NSLocalizedString(
+        let sectionLabel = makeSectionLabel(
+            NSLocalizedString(
                 "settings.hotkey.title",
                 comment: "Hotkey section title"
             )
         )
-        sectionLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         sectionStack.addArrangedSubview(sectionLabel)
         
         // Горизонтальный стек для кнопки горячей клавиши и кнопки очистки
@@ -498,15 +481,12 @@ class SettingsWindowController {
         self.hotkeyValidationLabel = validationLabel
 
         // Описание
-        let description = NSTextField(
-            wrappingLabelWithString: NSLocalizedString(
+        let description = makeDescriptionLabel(
+            NSLocalizedString(
                 "settings.hotkey.description",
                 comment: "Description for global VPN toggle hotkey"
             )
         )
-        description.font = NSFont.systemFont(ofSize: 11)
-        description.textColor = .secondaryLabelColor
-        description.preferredMaxLayoutWidth = 524
         sectionStack.addArrangedSubview(description)
         
         return sectionStack
@@ -933,5 +913,25 @@ class SettingsWindowController {
         box.translatesAutoresizingMaskIntoConstraints = false
         box.heightAnchor.constraint(equalToConstant: 1).isActive = true
         return box
+    }
+    
+    /// Creates a section label with consistent styling.
+    /// - Parameter text: Label text.
+    /// - Returns: Configured NSTextField.
+    private func makeSectionLabel(_ text: String) -> NSTextField {
+        let label = NSTextField(labelWithString: text)
+        label.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        return label
+    }
+    
+    /// Creates a description label with consistent styling.
+    /// - Parameter text: Description text.
+    /// - Returns: Configured NSTextField.
+    private func makeDescriptionLabel(_ text: String) -> NSTextField {
+        let label = NSTextField(wrappingLabelWithString: text)
+        label.font = NSFont.systemFont(ofSize: 11)
+        label.textColor = .secondaryLabelColor
+        label.preferredMaxLayoutWidth = 524
+        return label
     }
 }

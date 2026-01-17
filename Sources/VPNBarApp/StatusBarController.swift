@@ -156,13 +156,21 @@ class StatusBarController {
         }
     }
     
-    /// Переключает текущее VPN-подключение и при необходимости отправляет уведомление.
+    /// Toggles current VPN connection and sends notification if needed.
     func toggleVPNConnection() {
         let connections = vpnManager.connections
+        
+        // Early return if no connections available
+        guard !connections.isEmpty else {
+            Logger.vpn.warning("No VPN connections available to toggle")
+            return
+        }
+        
         let wasActive = vpnManager.hasActiveConnection
         var connectionName: String?
         var targetConnectionID: String?
         
+        // Determine target connection in priority order
         if let lastUsedID = settingsManager.lastUsedConnectionID,
            let lastUsedConnection = connections.first(where: { $0.id == lastUsedID }) {
             targetConnectionID = lastUsedID
@@ -175,15 +183,19 @@ class StatusBarController {
             connectionName = firstConnection.name
         }
         
-        if let connectionID = targetConnectionID {
-            vpnManager.toggleConnection(connectionID)
+        guard let connectionID = targetConnectionID else {
+            Logger.vpn.error("Failed to determine target connection ID")
+            return
         }
         
+        vpnManager.toggleConnection(connectionID)
+        
         if settingsManager.showNotifications {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                guard let self = self else { return }
-                let isNowActive = self.vpnManager.hasActiveConnection
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: UInt64(AppConstants.notificationDelay * 1_000_000_000))
+                guard !Task.isCancelled else { return }
                 
+                let isNowActive = self.vpnManager.hasActiveConnection
                 if wasActive != isNowActive {
                     self.notifyStatusChange(isNowActive: isNowActive, connectionName: connectionName)
                 }

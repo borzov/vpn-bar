@@ -7,15 +7,21 @@ import os.log
 @MainActor
 class VPNManager: VPNManagerProtocol {
     static let shared: VPNManager = {
-        let statusHandler: ((String, SCNetworkConnectionStatus) -> Void) = { connectionID, status in
+        // Create session manager with weak reference to avoid retain cycle
+        let statusHandler: @Sendable (String, SCNetworkConnectionStatus) -> Void = { connectionID, status in
             Task { @MainActor in
                 VPNManager.shared.updateConnectionStatus(identifier: connectionID, newStatus: status)
             }
         }
-        return VPNManager(
+        
+        let sessionManager = VPNSessionManager(statusUpdateHandler: statusHandler)
+        
+        let manager = VPNManager(
             configurationLoader: VPNConfigurationLoader(),
-            sessionManager: VPNSessionManager(statusUpdateHandler: statusHandler)
+            sessionManager: sessionManager
         )
+        
+        return manager
     }()
     
     @Published var connections: [VPNConnection] = []
@@ -23,7 +29,7 @@ class VPNManager: VPNManagerProtocol {
     @Published var loadingError: VPNError?
     
     private let configurationLoader: VPNConfigurationLoaderProtocol
-    private let sessionManager: VPNSessionManagerProtocol
+    private var sessionManager: any VPNSessionManagerProtocol
     private var updateTimer: Timer?
     private var loadTask: Task<Void, Never>?
     /// Request ID for tracking the relevance of configuration load results.
@@ -55,24 +61,21 @@ class VPNManager: VPNManagerProtocol {
     
     init(
         configurationLoader: VPNConfigurationLoaderProtocol? = nil,
-        sessionManager: VPNSessionManagerProtocol? = nil
+        sessionManager: (any VPNSessionManagerProtocol)? = nil
     ) {
-        if let loader = configurationLoader {
-            self.configurationLoader = loader
-        } else {
-            self.configurationLoader = VPNConfigurationLoader()
-        }
+        self.configurationLoader = configurationLoader ?? VPNConfigurationLoader()
         
-        // Create sessionManager with status update handler
-        var handler: ((String, SCNetworkConnectionStatus) -> Void)?
-        if sessionManager == nil {
-            handler = { connectionID, status in
+        if let manager = sessionManager {
+            self.sessionManager = manager
+        } else {
+            // Create default session manager if not provided
+            let statusHandler: @Sendable (String, SCNetworkConnectionStatus) -> Void = { connectionID, status in
                 Task { @MainActor in
                     VPNManager.shared.updateConnectionStatus(identifier: connectionID, newStatus: status)
                 }
             }
+            self.sessionManager = VPNSessionManager(statusUpdateHandler: statusHandler)
         }
-        self.sessionManager = sessionManager ?? VPNSessionManager(statusUpdateHandler: handler)
         
         _ = updateInterval
         
@@ -153,32 +156,39 @@ class VPNManager: VPNManagerProtocol {
             return
         }
 
-        if sessionManager.hasSession(for: connectionID) {
-            do {
-                try sessionManager.startConnection(connectionID: connectionID)
-                updateConnectionToConnecting(connectionID: connectionID)
-            } catch {
-                Logger.vpn.error("Failed to start connection: \(error.localizedDescription)")
-                if attempt < retryCount {
-                    let delay = AppConstants.retryBaseDelay * pow(2.0, Double(attempt - 1))
-                    Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                        self.connectWithRetry(to: connectionID, retryCount: retryCount, attempt: attempt + 1)
-                    }
-                } else {
-                    loadingError = error as? VPNError ?? .connectionFailed(underlying: error.localizedDescription)
-                    // Reset status to disconnected after all retries exhausted
-                    resetConnectionToDisconnected(connectionID: connectionID)
-                }
-            }
-        } else {
-            if let uuid = UUID(uuidString: connectionID) {
-                let nsUUID = uuid as NSUUID
-                Task { @MainActor in
-                    await self.sessionManager.getOrCreateSession(for: nsUUID)
-                    if self.sessionManager.hasSession(for: connectionID) {
+        Task { @MainActor in
+            let hasSession = await sessionManager.hasSession(for: connectionID)
+            
+            if hasSession {
+                do {
+                    try await sessionManager.startConnection(connectionID: connectionID)
+                    updateConnectionToConnecting(connectionID: connectionID)
+                } catch {
+                    Logger.vpn.error("Failed to start connection: \(error.localizedDescription)")
+                    if attempt < retryCount {
+                        let delay = AppConstants.retryBaseDelay * pow(2.0, Double(attempt - 1))
                         do {
-                            try self.sessionManager.startConnection(connectionID: connectionID)
+                            try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                            guard !Task.isCancelled else { return }
+                            self.connectWithRetry(to: connectionID, retryCount: retryCount, attempt: attempt + 1)
+                        } catch {
+                            // Task was cancelled
+                            return
+                        }
+                    } else {
+                        loadingError = error as? VPNError ?? .connectionFailed(underlying: error.localizedDescription)
+                        resetConnectionToDisconnected(connectionID: connectionID)
+                    }
+                }
+            } else {
+                if let uuid = UUID(uuidString: connectionID) {
+                    let nsUUID = uuid as NSUUID
+                    await self.sessionManager.getOrCreateSession(for: nsUUID)
+                    
+                    let hasSessionNow = await self.sessionManager.hasSession(for: connectionID)
+                    if hasSessionNow {
+                        do {
+                            try await self.sessionManager.startConnection(connectionID: connectionID)
                             self.updateConnectionToConnecting(connectionID: connectionID)
                         } catch {
                             self.handleConnectionFailure(connectionID: connectionID, retryCount: retryCount, attempt: attempt)
@@ -186,23 +196,31 @@ class VPNManager: VPNManagerProtocol {
                     } else {
                         self.handleConnectionFailure(connectionID: connectionID, retryCount: retryCount, attempt: attempt)
                     }
+                } else {
+                    loadingError = .sessionNotFound(id: connectionID)
+                    Logger.vpn.error("Invalid UUID for connection: \(connectionID)")
+                    resetConnectionToDisconnected(connectionID: connectionID)
                 }
-            } else {
-                loadingError = .sessionNotFound(id: connectionID)
-                Logger.vpn.error("Invalid UUID for connection: \(connectionID)")
             }
         }
     }
     
+    /// Updates connection status if it differs from current status.
+    /// - Parameters:
+    ///   - id: Connection identifier.
+    ///   - status: New status to set.
+    private func updateConnectionStatus(id: String, status: VPNConnection.VPNStatus) {
+        guard let index = connections.firstIndex(where: { $0.id == id }) else { return }
+        guard connections[index].status != status else { return }
+        
+        var updatedConnections = connections
+        updatedConnections[index].status = status
+        connections = updatedConnections
+        updateActiveStatus()
+    }
+    
     private func updateConnectionToConnecting(connectionID: String) {
-        if let index = connections.firstIndex(where: { $0.id == connectionID }) {
-            if connections[index].status != .connecting {
-                var updatedConnections = connections
-                updatedConnections[index].status = .connecting
-                connections = updatedConnections
-                updateActiveStatus()
-            }
-        }
+        updateConnectionStatus(id: connectionID, status: .connecting)
     }
     
     
@@ -212,13 +230,18 @@ class VPNManager: VPNManagerProtocol {
             Logger.vpn.info("Session creation failed, retrying in \(delay) seconds...")
 
             Task { @MainActor in
-                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                self.connectWithRetry(to: connectionID, retryCount: retryCount, attempt: attempt + 1)
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                    guard !Task.isCancelled else { return }
+                    self.connectWithRetry(to: connectionID, retryCount: retryCount, attempt: attempt + 1)
+                } catch {
+                    // Task was cancelled
+                    return
+                }
             }
         } else {
             Logger.vpn.error("Session creation failed after \(retryCount) attempts for: \(connectionID)")
             loadingError = .sessionCreationFailed(id: connectionID)
-            // Reset status to disconnected after all retries exhausted
             resetConnectionToDisconnected(connectionID: connectionID)
         }
     }
@@ -227,14 +250,7 @@ class VPNManager: VPNManagerProtocol {
     /// Used when connection attempts fail after all retries are exhausted.
     /// - Parameter connectionID: Connection identifier to reset status for.
     private func resetConnectionToDisconnected(connectionID: String) {
-        if let index = connections.firstIndex(where: { $0.id == connectionID }) {
-            if connections[index].status != .disconnected {
-                var updatedConnections = connections
-                updatedConnections[index].status = .disconnected
-                connections = updatedConnections
-                updateActiveStatus()
-            }
-        }
+        updateConnectionStatus(id: connectionID, status: .disconnected)
     }
     
     
@@ -248,71 +264,65 @@ class VPNManager: VPNManagerProtocol {
             return
         }
 
-        guard sessionManager.hasSession(for: connectionID) else {
-            loadingError = .sessionNotFound(id: connectionID)
-            return
-        }
-
-        if let index = connections.firstIndex(where: { $0.id == connectionID }) {
-            if connections[index].status != .disconnecting {
-                var updatedConnections = connections
-                updatedConnections[index].status = .disconnecting
-                connections = updatedConnections
-                updateActiveStatus()
+        Task { @MainActor in
+            let hasSession = await sessionManager.hasSession(for: connectionID)
+            guard hasSession else {
+                loadingError = .sessionNotFound(id: connectionID)
+                return
             }
-        }
 
-        // Cancel any existing timeout task for this connection
-        disconnectTimeoutTasks[connectionID]?.cancel()
+            updateConnectionStatus(id: connectionID, status: .disconnecting)
 
-        // Store timeout task in instance property to prevent premature deallocation
-        // The task will reset connection status to disconnected if disconnection doesn't complete in time
-        disconnectTimeoutTasks[connectionID] = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: UInt64(AppConstants.connectionTimeout * 1_000_000_000))
-            if !Task.isCancelled {
-                Logger.vpn.error("Disconnection timeout for: \(connectionID)")
-                self.loadingError = .connectionFailed(underlying: "Disconnection timeout after \(AppConstants.connectionTimeout) seconds")
-                if let index = self.connections.firstIndex(where: { $0.id == connectionID }) {
-                    var updatedConnections = self.connections
-                    updatedConnections[index].status = .disconnected
-                    self.connections = updatedConnections
-                    self.updateActiveStatus()
-                }
-                self.disconnectTimeoutTasks.removeValue(forKey: connectionID)
-            }
-        }
-
-        do {
-            try sessionManager.stopConnection(connectionID: connectionID)
-
-            // Update status after disconnection
-            sessionManager.getSessionStatus(connectionID: connectionID) { [weak self] status in
-                Task { @MainActor in
-                    guard let self = self else { return }
-                    self.disconnectTimeoutTasks[connectionID]?.cancel()
-                    self.disconnectTimeoutTasks.removeValue(forKey: connectionID)
-
-                    if status == .disconnected {
-                        Logger.vpn.info("Disconnected from VPN: \(connectionID)")
-                        SoundFeedbackManager.shared.play(.disconnection)
-                        StatisticsManager.shared.recordDisconnection()
-                        if let connection = self.connections.first(where: { $0.id == connectionID }) {
-                            ConnectionHistoryManager.shared.addEntry(
-                                connectionID: connectionID,
-                                connectionName: connection.name,
-                                action: .disconnected
-                            )
-                        }
-                    }
-                    self.updateConnectionStatus(identifier: connectionID, newStatus: status)
-                }
-            }
-        } catch {
+            // Cancel any existing timeout task for this connection
             disconnectTimeoutTasks[connectionID]?.cancel()
-            disconnectTimeoutTasks.removeValue(forKey: connectionID)
-            Logger.vpn.error("Disconnection failed: \(connectionID)")
-            loadingError = .connectionFailed(underlying: error.localizedDescription)
-            updateConnectionStatus(identifier: connectionID, newStatus: .disconnected)
+
+            // Create timeout task to handle disconnection timeout
+            disconnectTimeoutTasks[connectionID] = Task { @MainActor in
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(AppConstants.connectionTimeout * 1_000_000_000))
+                    if !Task.isCancelled {
+                        Logger.vpn.error("Disconnection timeout for: \(connectionID)")
+                        self.loadingError = .connectionFailed(underlying: "Disconnection timeout after \(AppConstants.connectionTimeout) seconds")
+                        self.updateConnectionStatus(id: connectionID, status: .disconnected)
+                        self.disconnectTimeoutTasks.removeValue(forKey: connectionID)
+                    }
+                } catch {
+                    // Task was cancelled - normal flow
+                }
+            }
+
+            do {
+                try await sessionManager.stopConnection(connectionID: connectionID)
+
+                // Update status after disconnection
+                await sessionManager.getSessionStatus(connectionID: connectionID) { [weak self] status in
+                    Task { @MainActor in
+                        guard let self = self else { return }
+                        self.disconnectTimeoutTasks[connectionID]?.cancel()
+                        self.disconnectTimeoutTasks.removeValue(forKey: connectionID)
+
+                        if status == .disconnected {
+                            Logger.vpn.info("Disconnected from VPN: \(connectionID)")
+                            SoundFeedbackManager.shared.play(.disconnection)
+                            StatisticsManager.shared.recordDisconnection()
+                            if let connection = self.connections.first(where: { $0.id == connectionID }) {
+                                ConnectionHistoryManager.shared.addEntry(
+                                    connectionID: connectionID,
+                                    connectionName: connection.name,
+                                    action: .disconnected
+                                )
+                            }
+                        }
+                        self.updateConnectionStatus(identifier: connectionID, newStatus: status)
+                    }
+                }
+            } catch {
+                disconnectTimeoutTasks[connectionID]?.cancel()
+                disconnectTimeoutTasks.removeValue(forKey: connectionID)
+                Logger.vpn.error("Disconnection failed: \(connectionID)")
+                loadingError = .connectionFailed(underlying: error.localizedDescription)
+                updateConnectionStatus(identifier: connectionID, newStatus: .disconnected)
+            }
         }
     }
     
@@ -370,8 +380,8 @@ class VPNManager: VPNManagerProtocol {
         }
     }
     
-    private func getCachedConnectionStatus(for identifier: String) -> VPNConnection.VPNStatus {
-        let scStatus = sessionManager.getCachedStatus(for: identifier)
+    private func getCachedConnectionStatus(for identifier: String) async -> VPNConnection.VPNStatus {
+        let scStatus = await sessionManager.getCachedStatus(for: identifier)
         return convertToVPNStatus(from: scStatus)
     }
     
@@ -391,37 +401,49 @@ class VPNManager: VPNManagerProtocol {
     }
     
     private func processLoadedConnections(_ loadedConnections: [VPNConnection]) {
-        var processedConnections: [VPNConnection] = []
-        
-        for connection in loadedConnections {
-            let identifierString = connection.id
-            
-            if !sessionManager.hasSession(for: identifierString) {
-                if let uuid = UUID(uuidString: identifierString) {
-                    let nsUUID = uuid as NSUUID
-                    Task { @MainActor in
-                        await self.sessionManager.getOrCreateSession(for: nsUUID)
+        Task { @MainActor in
+            // Use TaskGroup to properly manage concurrent session creation
+            await withTaskGroup(of: Void.self) { group in
+                for connection in loadedConnections {
+                    let identifierString = connection.id
+                    
+                    let hasSession = await sessionManager.hasSession(for: identifierString)
+                    if !hasSession {
+                        if let uuid = UUID(uuidString: identifierString) {
+                            let nsUUID = uuid as NSUUID
+                            group.addTask {
+                                await self.sessionManager.getOrCreateSession(for: nsUUID)
+                            }
+                        }
                     }
                 }
+                
+                // Wait for all session creation tasks to complete
+                await group.waitForAll()
             }
             
-            let status = getCachedConnectionStatus(for: identifierString)
+            // Build processed connections after all sessions are created
+            var processedConnections: [VPNConnection] = []
+            for connection in loadedConnections {
+                let identifierString = connection.id
+                let status = await getCachedConnectionStatus(for: identifierString)
+                
+                processedConnections.append(VPNConnection(
+                    id: identifierString,
+                    name: connection.name,
+                    serviceID: identifierString,
+                    status: status
+                ))
+            }
             
-            processedConnections.append(VPNConnection(
-                id: identifierString,
-                name: connection.name,
-                serviceID: identifierString,
-                status: status
-            ))
+            connections = processedConnections.sorted { $0.name < $1.name }
+            
+            if connections.isEmpty {
+                loadingError = .noConfigurations
+            }
+            
+            updateActiveStatus()
         }
-        
-        connections = processedConnections.sorted { $0.name < $1.name }
-        
-        if connections.isEmpty {
-            loadingError = .noConfigurations
-        }
-        
-        updateActiveStatus()
     }
     
     private func handleLoadError(_ error: VPNError) {
@@ -431,10 +453,12 @@ class VPNManager: VPNManagerProtocol {
     }
     
     private func refreshAllStatuses() {
-        for connection in connections {
-            sessionManager.getSessionStatus(connectionID: connection.id) { [weak self] status in
-                Task { @MainActor in
-                    self?.updateConnectionStatus(identifier: connection.id, newStatus: status)
+        Task { @MainActor in
+            for connection in connections {
+                await sessionManager.getSessionStatus(connectionID: connection.id) { [weak self] status in
+                    Task { @MainActor in
+                        self?.updateConnectionStatus(identifier: connection.id, newStatus: status)
+                    }
                 }
             }
         }
@@ -445,7 +469,7 @@ class VPNManager: VPNManagerProtocol {
         
         let effectiveInterval = max(AppConstants.minUpdateInterval, updateInterval)
         
-        updateTimer = Timer.scheduledTimer(withTimeInterval: effectiveInterval, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: effectiveInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self = self else { return }
                 
@@ -454,7 +478,9 @@ class VPNManager: VPNManagerProtocol {
                 self.loadConnections(forceReload: needsFullReload)
             }
         }
-        RunLoop.current.add(updateTimer!, forMode: .common)
+        
+        updateTimer = timer
+        RunLoop.current.add(timer, forMode: .common)
     }
     
     private func restartMonitoring() {
@@ -479,7 +505,10 @@ class VPNManager: VPNManagerProtocol {
             task.cancel()
         }
         disconnectTimeoutTasks.removeAll()
-        sessionManager.cleanup()
+        
+        Task {
+            await sessionManager.cleanup()
+        }
     }
 }
 

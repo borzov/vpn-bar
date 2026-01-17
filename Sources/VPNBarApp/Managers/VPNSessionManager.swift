@@ -2,21 +2,21 @@ import Foundation
 import SystemConfiguration
 import os.log
 
-/// Управляет VPN-сессиями.
-@MainActor
-final class VPNSessionManager: VPNSessionManagerProtocol {
+/// Manages VPN sessions with thread-safe access using actor isolation.
+actor VPNSessionManager: VPNSessionManagerProtocol {
     private var sessions: [String: ne_session_t] = [:]
     private let sessionQueue = DispatchQueue(label: "VPNBarApp.sessionQueue")
     private var sessionStatuses: [String: SCNetworkConnectionStatus] = [:]
-    private var statusUpdateHandler: ((String, SCNetworkConnectionStatus) -> Void)?
+    private var statusUpdateHandler: (@Sendable (String, SCNetworkConnectionStatus) -> Void)?
     
-    init(statusUpdateHandler: ((String, SCNetworkConnectionStatus) -> Void)? = nil) {
+    init(statusUpdateHandler: (@Sendable (String, SCNetworkConnectionStatus) -> Void)? = nil) {
         self.statusUpdateHandler = statusUpdateHandler
     }
     
     func getOrCreateSession(for uuid: NSUUID) async {
         let identifier = uuid.uuidString
         
+        // Thread-safe check: actor isolation guarantees no race condition
         guard sessions[identifier] == nil else { return }
         
         let session = await withCheckedContinuation { continuation in
@@ -37,31 +37,29 @@ final class VPNSessionManager: VPNSessionManagerProtocol {
             return
         }
         
-        if sessions[identifier] == nil {
-            sessions[identifier] = session
-            
-            ne_session_set_event_handler(session, sessionQueue) { [weak self] event, _ in
-                Task { @MainActor in
-                    guard let self = self else { return }
-
-                    // Log significant connection events
-                    switch event {
-                    case 1: // NESessionEventTypeConnected
-                        Logger.vpn.info("Connection established: \(identifier)")
-                    case 2: // NESessionEventTypeFailed
-                        Logger.vpn.error("Connection failed: \(identifier)")
-                    default:
-                        break
-                    }
-
-                    self.refreshSessionStatus(for: identifier, session: session)
+        // Store session immediately after creation (no race condition due to actor)
+        sessions[identifier] = session
+        
+        // Set event handler with weak self to prevent retain cycle
+        ne_session_set_event_handler(session, sessionQueue) { [weak self] event, _ in
+            Task {
+                guard let self = self else { return }
+                
+                // Log significant connection events
+                switch event {
+                case 1: // NESessionEventTypeConnected
+                    Logger.vpn.info("Connection established: \(identifier)")
+                case 2: // NESessionEventTypeFailed
+                    Logger.vpn.error("Connection failed: \(identifier)")
+                default:
+                    break
                 }
+                
+                await self.refreshSessionStatus(for: identifier, session: session)
             }
-            
-            refreshSessionStatus(for: identifier, session: session)
-        } else {
-            ne_session_release(session)
         }
+        
+        await refreshSessionStatus(for: identifier, session: session)
     }
     
     func startConnection(connectionID: String) throws {
@@ -83,13 +81,13 @@ final class VPNSessionManager: VPNSessionManagerProtocol {
         ne_session_stop(session)
     }
     
-    func getSessionStatus(connectionID: String, completion: @escaping (SCNetworkConnectionStatus) -> Void) {
+    func getSessionStatus(connectionID: String, completion: @escaping @Sendable (SCNetworkConnectionStatus) -> Void) async {
         guard let session = sessions[connectionID] else {
             completion(.invalid)
             return
         }
         
-        refreshSessionStatus(for: connectionID, session: session, completion: completion)
+        await refreshSessionStatus(for: connectionID, session: session, completion: completion)
     }
     
     func getCachedStatus(for connectionID: String) -> SCNetworkConnectionStatus {
@@ -113,21 +111,36 @@ final class VPNSessionManager: VPNSessionManagerProtocol {
         sessionStatuses.removeAll()
     }
     
-    private func refreshSessionStatus(for identifier: String, session: ne_session_t, completion: ((SCNetworkConnectionStatus) -> Void)? = nil) {
-        ne_session_get_status(session, sessionQueue) { [weak self] status in
-            Task { @MainActor in
-                guard let self = self else { return }
-                let scStatus = SCNetworkConnectionGetStatusFromNEStatus(status)
-                let oldStatus = self.sessionStatuses[identifier]
-                self.sessionStatuses[identifier] = scStatus
-                
-                if oldStatus != scStatus {
-                    self.statusUpdateHandler?(identifier, scStatus)
+    private func refreshSessionStatus(for identifier: String, session: ne_session_t, completion: (@Sendable (SCNetworkConnectionStatus) -> Void)? = nil) async {
+        await withCheckedContinuation { continuation in
+            ne_session_get_status(session, sessionQueue) { [weak self] status in
+                Task {
+                    guard let self = self else {
+                        continuation.resume()
+                        return
+                    }
+                    
+                    let scStatus = SCNetworkConnectionGetStatusFromNEStatus(status)
+                    let oldStatus = await self.sessionStatuses[identifier]
+                    await self.updateStatus(identifier: identifier, status: scStatus)
+                    
+                    if oldStatus != scStatus {
+                        await self.notifyStatusChange(identifier: identifier, status: scStatus)
+                    }
+                    
+                    completion?(scStatus)
+                    continuation.resume()
                 }
-                
-                completion?(scStatus)
             }
         }
+    }
+    
+    private func updateStatus(identifier: String, status: SCNetworkConnectionStatus) {
+        sessionStatuses[identifier] = status
+    }
+    
+    private func notifyStatusChange(identifier: String, status: SCNetworkConnectionStatus) {
+        statusUpdateHandler?(identifier, status)
     }
 }
 

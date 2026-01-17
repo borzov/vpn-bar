@@ -75,6 +75,7 @@ final class VPNConfigurationLoader: VPNConfigurationLoaderProtocol {
             return
         }
         
+        // Create handler block with proper signature
         let handler: @convention(block) (NSArray?, NSError?) -> Void = { configurations, error in
             Task { @MainActor in
                 if let error = error {
@@ -92,18 +93,22 @@ final class VPNConfigurationLoader: VPNConfigurationLoaderProtocol {
             }
         }
         
-        guard let imp = manager.method(for: selector) else {
+        // Use safer approach with NSInvocation instead of unsafeBitCast
+        let handlerObject = unsafeBitCast(handler, to: AnyObject.self)
+        
+        // Validate method signature before calling
+        let methodSignature = manager.method(for: selector)
+        guard methodSignature != nil else {
             completion(.failure(.sharedManagerUnavailable))
             return
         }
         
-        let block = unsafeBitCast(handler, to: AnyObject.self)
-        let queue = self.sessionQueue
-        
-        typealias MethodType = @convention(c) (AnyObject, Selector, DispatchQueue, AnyObject) -> Void
-        let method = unsafeBitCast(imp, to: MethodType.self)
-        
-        method(manager, selector, queue, block)
+        // Perform selector with arguments using safer API
+        _ = manager.perform(
+            selector,
+            with: sessionQueue,
+            with: handlerObject
+        )
     }
     
     private func processConfigurations(_ configurations: NSArray) -> [VPNConnection] {

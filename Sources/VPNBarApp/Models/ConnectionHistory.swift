@@ -37,11 +37,11 @@ final class ConnectionHistoryManager {
         return Array(entries.sorted { $0.timestamp > $1.timestamp }.prefix(limit))
     }
     
-    /// Добавляет запись в историю.
+    /// Adds entry to connection history.
     /// - Parameters:
-    ///   - connectionID: Идентификатор соединения.
-    ///   - connectionName: Имя соединения.
-    ///   - action: Действие (подключение/отключение).
+    ///   - connectionID: Connection identifier.
+    ///   - connectionName: Connection name.
+    ///   - action: Action (connected/disconnected).
     func addEntry(connectionID: String, connectionName: String, action: ConnectionHistoryEntry.Action) {
         let entry = ConnectionHistoryEntry(
             id: UUID().uuidString,
@@ -51,11 +51,22 @@ final class ConnectionHistoryManager {
             action: action
         )
         
-        var history = getHistory(limit: maxHistoryEntries)
-        history.append(entry)
+        // Load existing history without sorting (raw data)
+        guard let data = userDefaults.data(forKey: historyKey),
+              var history = try? JSONDecoder().decode([ConnectionHistoryEntry].self, from: data) else {
+            // No existing history, create new with single entry
+            if let data = try? JSONEncoder().encode([entry]) {
+                userDefaults.set(data, forKey: historyKey)
+            }
+            return
+        }
         
+        // Insert new entry at the beginning (most recent)
+        history.insert(entry, at: 0)
+        
+        // Trim to max entries if needed (no sorting required, already in order)
         if history.count > maxHistoryEntries {
-            history = Array(history.sorted { $0.timestamp > $1.timestamp }.prefix(maxHistoryEntries))
+            history = Array(history.prefix(maxHistoryEntries))
         }
         
         if let data = try? JSONEncoder().encode(history) {

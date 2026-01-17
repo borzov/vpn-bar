@@ -2,8 +2,9 @@ import Foundation
 import SystemConfiguration
 @testable import VPNBarApp
 
-@MainActor
-final class MockVPNSessionManager: VPNSessionManagerProtocol {
+/// Mock implementation of VPNSessionManager for testing.
+/// Conforms to actor protocol to match production implementation.
+actor MockVPNSessionManager: VPNSessionManagerProtocol {
     var getOrCreateSessionCalled = false
     var startConnectionCalled = false
     var stopConnectionCalled = false
@@ -50,7 +51,7 @@ final class MockVPNSessionManager: VPNSessionManagerProtocol {
         cachedStatuses[connectionID] = .disconnected
     }
 
-    func getSessionStatus(connectionID: String, completion: @escaping (SCNetworkConnectionStatus) -> Void) {
+    func getSessionStatus(connectionID: String, completion: @escaping @Sendable (SCNetworkConnectionStatus) -> Void) async {
         completion(cachedStatuses[connectionID] ?? statusToReturn)
     }
 
@@ -90,5 +91,21 @@ final class MockVPNSessionManager: VPNSessionManagerProtocol {
     
     func setCachedStatus(_ status: SCNetworkConnectionStatus, for connectionID: String) {
         cachedStatuses[connectionID] = status
+    }
+    
+    func setShouldThrowOnStart(_ value: Bool) {
+        shouldThrowOnStart = value
+    }
+    
+    func setShouldThrowOnStop(_ value: Bool) {
+        shouldThrowOnStop = value
+    }
+    
+    func getStartConnectionIDs() -> [String] {
+        startConnectionIDs
+    }
+    
+    func getStopConnectionIDs() -> [String] {
+        stopConnectionIDs
     }
 }

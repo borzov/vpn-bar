@@ -71,7 +71,9 @@ final class StatusItemViewModel {
     }
 
     private func setupFallbackTimer() {
-        fallbackTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        // Use longer interval for fallback polling to reduce overhead
+        // Matches the minimum update interval from AppConstants
+        fallbackTimer = Timer.scheduledTimer(withTimeInterval: AppConstants.minUpdateInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.updateStateFromManager()
             }

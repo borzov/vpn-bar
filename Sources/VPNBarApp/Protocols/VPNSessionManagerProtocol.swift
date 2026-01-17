@@ -1,40 +1,40 @@
 import Foundation
 import SystemConfiguration
 
-/// Протокол для управления VPN-сессиями.
-@MainActor
-protocol VPNSessionManagerProtocol {
-    /// Получает или создаёт сессию для указанного UUID.
-    /// - Parameter uuid: UUID подключения.
+/// Protocol for managing VPN sessions with thread-safe operations.
+protocol VPNSessionManagerProtocol: Actor {
+    /// Gets or creates a session for the specified UUID.
+    /// - Parameter uuid: Connection UUID.
     func getOrCreateSession(for uuid: NSUUID) async
     
-    /// Запускает подключение для указанного идентификатора.
-    /// - Parameter connectionID: Идентификатор соединения.
+    /// Starts connection for the specified identifier.
+    /// - Parameter connectionID: Connection identifier.
     func startConnection(connectionID: String) throws
     
-    /// Останавливает подключение для указанного идентификатора.
-    /// - Parameter connectionID: Идентификатор соединения.
+    /// Stops connection for the specified identifier.
+    /// - Parameter connectionID: Connection identifier.
     func stopConnection(connectionID: String) throws
     
-    /// Получает статус сессии.
-    /// - Parameter connectionID: Идентификатор соединения.
-    /// - Parameter completion: Обработчик результата.
-    func getSessionStatus(connectionID: String, completion: @escaping (SCNetworkConnectionStatus) -> Void)
+    /// Gets session status asynchronously.
+    /// - Parameters:
+    ///   - connectionID: Connection identifier.
+    ///   - completion: Result handler.
+    func getSessionStatus(connectionID: String, completion: @escaping @Sendable (SCNetworkConnectionStatus) -> Void) async
     
-    /// Проверяет наличие сессии для указанного соединения.
-    /// - Parameter connectionID: Идентификатор соединения.
-    /// - Returns: `true` если сессия существует, иначе `false`.
+    /// Checks if session exists for the specified connection.
+    /// - Parameter connectionID: Connection identifier.
+    /// - Returns: `true` if session exists, otherwise `false`.
     func hasSession(for connectionID: String) -> Bool
     
-    /// Получает кэшированный статус для указанного соединения.
-    /// - Parameter connectionID: Идентификатор соединения.
-    /// - Returns: Кэшированный статус соединения.
+    /// Gets cached status for the specified connection.
+    /// - Parameter connectionID: Connection identifier.
+    /// - Returns: Cached connection status.
     func getCachedStatus(for connectionID: String) -> SCNetworkConnectionStatus
     
-    /// Возвращает список всех идентификаторов соединений, для которых есть сессии.
+    /// Returns list of all connection identifiers that have sessions.
     var allConnectionIDs: [String] { get }
     
-    /// Освобождает все ресурсы сессий при завершении приложения.
+    /// Releases all session resources on application termination.
     func cleanup()
 }
 

@@ -176,7 +176,9 @@ class MenuController {
     }
     
     private func scheduleMenuUpdate() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(AppConstants.notificationDelay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
             self.updateMenu()
         }
     }

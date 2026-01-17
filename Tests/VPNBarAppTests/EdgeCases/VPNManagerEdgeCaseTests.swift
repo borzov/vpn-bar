@@ -169,8 +169,8 @@ final class VPNManagerEdgeCaseTests: XCTestCase {
     func test_disconnect_timeoutTask_isCreated() async {
         let connection = VPNConnectionFactory.createConnected()
         sut.connections = [connection]
-        mockSessionManager.setSession(for: connection.id)
-        mockSessionManager.setCachedStatus(.connected, for: connection.id)
+        await mockSessionManager.setSession(for: connection.id)
+        await mockSessionManager.setCachedStatus(.connected, for: connection.id)
         
         sut.disconnect(from: connection.id)
         
@@ -178,14 +178,15 @@ final class VPNManagerEdgeCaseTests: XCTestCase {
         await TestHelpers.waitForAsync(timeout: 0.05)
         
         // Timeout task should exist (we can't directly access it, but we can verify disconnect was called)
-        XCTAssertTrue(mockSessionManager.stopConnectionCalled, "Disconnect should be called")
+        let stopCalled = await mockSessionManager.stopConnectionCalled
+        XCTAssertTrue(stopCalled, "Disconnect should be called")
     }
     
     func test_disconnect_successfulDisconnect_cancelsTimeout() async {
         let connection = VPNConnectionFactory.createConnected()
         sut.connections = [connection]
-        mockSessionManager.setSession(for: connection.id)
-        mockSessionManager.setCachedStatus(.disconnected, for: connection.id)
+        await mockSessionManager.setSession(for: connection.id)
+        await mockSessionManager.setCachedStatus(.disconnected, for: connection.id)
         
         sut.disconnect(from: connection.id)
         
@@ -205,8 +206,8 @@ final class VPNManagerEdgeCaseTests: XCTestCase {
         // We'll use a shorter timeout by checking the behavior
         let connection = VPNConnectionFactory.createConnected()
         sut.connections = [connection]
-        mockSessionManager.setSession(for: connection.id)
-        mockSessionManager.setCachedStatus(.connected, for: connection.id)
+        await mockSessionManager.setSession(for: connection.id)
+        await mockSessionManager.setCachedStatus(.connected, for: connection.id)
         
         // Set status to disconnecting
         if let index = sut.connections.firstIndex(where: { $0.id == connection.id }) {
@@ -220,7 +221,8 @@ final class VPNManagerEdgeCaseTests: XCTestCase {
         // Don't call getSessionStatus callback to simulate timeout
         // Wait for timeout (normally 30s, but in test we'll verify the mechanism exists)
         // Since we can't easily test the full timeout, we verify the disconnect was attempted
-        XCTAssertTrue(mockSessionManager.stopConnectionCalled, "Disconnect should be attempted")
+        let stopCalled = await mockSessionManager.stopConnectionCalled
+        XCTAssertTrue(stopCalled, "Disconnect should be attempted")
     }
     
     // MARK: - Reset Connection Status Tests
@@ -228,8 +230,8 @@ final class VPNManagerEdgeCaseTests: XCTestCase {
     func test_connect_failureAfterRetries_resetsToDisconnected() async {
         let connection = VPNConnectionFactory.createDisconnected()
         sut.connections = [connection]
-        mockSessionManager.setSession(for: connection.id)
-        mockSessionManager.shouldThrowOnStart = true
+        await mockSessionManager.setSession(for: connection.id)
+        await mockSessionManager.setShouldThrowOnStart(true)
         
         sut.connect(to: connection.id, retryCount: 1)
         

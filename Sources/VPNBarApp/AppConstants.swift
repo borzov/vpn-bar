@@ -32,6 +32,9 @@ enum AppConstants {
     /// Таймаут для операций подключения/отключения (в секундах).
     static let connectionTimeout: TimeInterval = 30.0
     
+    /// Задержка перед отправкой уведомления о смене статуса (в секундах).
+    static let notificationDelay: TimeInterval = 0.5
+    
     /// URL-адреса, используемые в приложении.
     enum URLs {
         static let repository = URL(string: "https://github.com/borzov/vpn-bar")!
