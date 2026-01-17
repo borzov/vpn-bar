@@ -11,16 +11,22 @@ NC='\033[0m' # No Color
 # Пути
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-BUILD_DIR="$PROJECT_DIR/.build/release"
 APP_NAME="VPNBarApp"
 APP_BUNDLE="$PROJECT_DIR/$APP_NAME.app"
 CONTENTS_DIR="$APP_BUNDLE/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 
+BUILD_DIR="$PROJECT_DIR/.build/release"
+if [ ! -f "$BUILD_DIR/$APP_NAME" ]; then
+  EXEC_PATH=$(find "$PROJECT_DIR/.build" -type f -name "$APP_NAME" 2>/dev/null | head -1)
+  if [ -n "$EXEC_PATH" ]; then
+    BUILD_DIR=$(dirname "$EXEC_PATH")
+  fi
+fi
+
 echo -e "${GREEN}Создание .app bundle для $APP_NAME...${NC}"
 
-# Проверяем наличие исполняемого файла
 if [ ! -f "$BUILD_DIR/$APP_NAME" ]; then
     echo -e "${RED}Ошибка: Исполняемый файл не найден. Сначала выполните: swift build -c release${NC}"
     exit 1
