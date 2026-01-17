@@ -22,8 +22,6 @@ final class StatusItemViewModel {
     /// Current state published for UI updates.
     @Published private(set) var state: State
 
-    private static var cachedConnectedImage: NSImage?
-    private static var cachedDisconnectedImage: NSImage?
 
     private let vpnManager: VPNManagerProtocol
     private let settings: SettingsManagerProtocol
@@ -144,32 +142,25 @@ final class StatusItemViewModel {
     }
 
     private static func makeConnectedImage() -> NSImage? {
-        if let cached = cachedConnectedImage {
-            return cached
-        }
-        
-        guard let image = NSImage(systemSymbolName: "network.badge.shield.half.filled", accessibilityDescription: nil) else {
-            return nil
-        }
-        image.isTemplate = true
-        cachedConnectedImage = image
-        return image
+        return ImageCache.shared.image(systemSymbolName: "network.badge.shield.half.filled")
     }
 
     private static func makeDisconnectedImage() -> NSImage? {
-        if let cached = cachedDisconnectedImage {
+        let cacheKey = "network_disconnected_0.4"
+        
+        if let cached = ImageCache.shared.cachedImage(forKey: cacheKey) {
             return cached
         }
         
         guard let base = NSImage(systemSymbolName: "network", accessibilityDescription: nil) else {
             return nil
         }
-        let image = NSImage(size: base.size)
-        image.lockFocus()
-        base.draw(at: .zero, from: .zero, operation: .sourceOver, fraction: 0.4)
-        image.unlockFocus()
+        let image = NSImage(size: base.size, flipped: false) { rect in
+            base.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 0.4)
+            return true
+        }
         image.isTemplate = true
-        cachedDisconnectedImage = image
+        ImageCache.shared.cacheImage(image, forKey: cacheKey)
         return image
     }
 }

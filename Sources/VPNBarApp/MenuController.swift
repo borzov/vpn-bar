@@ -7,10 +7,6 @@ class MenuController {
     static let shared = MenuController()
     
     // MARK: - Cached Images
-    private static var cachedActiveImage: NSImage?
-    private static var cachedInactiveImage: NSImage?
-    private static var cachedErrorImage: NSImage?
-    private static var cachedDisconnectAllImage: NSImage?
     
     private var menu: NSMenu?
     private var statusItem: NSStatusItem?
@@ -53,8 +49,8 @@ class MenuController {
     private func buildMenu() {
         let newMenu = NSMenu()
         // Set appearance only if NSApplication is available (not in test environment)
-        if let app = NSApplication.shared as NSApplication?, app.isRunning {
-            newMenu.appearance = app.effectiveAppearance
+        if NSApp != nil {
+            newMenu.appearance = NSApp.effectiveAppearance
         }
         
         if let error = vpnManager.loadingError {
@@ -203,42 +199,18 @@ class MenuController {
     // MARK: - Cached Image Helpers
     
     private static func activeImage() -> NSImage? {
-        if let cached = cachedActiveImage { return cached }
-        guard let image = NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: nil) else {
-            return nil
-        }
-        image.isTemplate = true
-        cachedActiveImage = image
-        return image
+        return ImageCache.shared.image(systemSymbolName: "checkmark.circle.fill")
     }
     
     private static func inactiveImage() -> NSImage? {
-        if let cached = cachedInactiveImage { return cached }
-        guard let image = NSImage(systemSymbolName: "circle", accessibilityDescription: nil) else {
-            return nil
-        }
-        image.isTemplate = true
-        cachedInactiveImage = image
-        return image
+        return ImageCache.shared.image(systemSymbolName: "circle")
     }
     
     private static func errorImage() -> NSImage? {
-        if let cached = cachedErrorImage { return cached }
-        guard let image = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil) else {
-            return nil
-        }
-        image.isTemplate = true
-        cachedErrorImage = image
-        return image
+        return ImageCache.shared.image(systemSymbolName: "exclamationmark.triangle")
     }
     
     private static func disconnectAllImage() -> NSImage? {
-        if let cached = cachedDisconnectAllImage { return cached }
-        guard let image = NSImage(systemSymbolName: "xmark.circle", accessibilityDescription: nil) else {
-            return nil
-        }
-        image.isTemplate = true
-        cachedDisconnectAllImage = image
-        return image
+        return ImageCache.shared.image(systemSymbolName: "xmark.circle")
     }
 }

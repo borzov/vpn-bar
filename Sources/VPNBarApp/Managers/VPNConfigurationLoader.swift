@@ -2,6 +2,15 @@ import Foundation
 import Darwin
 import os.log
 
+/// Wrapper for handler block to safely pass to Objective-C runtime.
+private class HandlerWrapper: NSObject {
+    let handler: @convention(block) (NSArray?, NSError?) -> Void
+    
+    init(_ handler: @escaping @convention(block) (NSArray?, NSError?) -> Void) {
+        self.handler = handler
+    }
+}
+
 /// Loads VPN configurations from the system.
 @MainActor
 final class VPNConfigurationLoader: VPNConfigurationLoaderProtocol {
@@ -93,8 +102,9 @@ final class VPNConfigurationLoader: VPNConfigurationLoaderProtocol {
             }
         }
         
-        // Use safer approach with NSInvocation instead of unsafeBitCast
-        let handlerObject = unsafeBitCast(handler, to: AnyObject.self)
+        // Use HandlerWrapper to safely pass block to Objective-C runtime
+        let handlerWrapper = HandlerWrapper(handler)
+        let handlerObject = handlerWrapper as AnyObject
         
         // Validate method signature before calling
         let methodSignature = manager.method(for: selector)

@@ -212,9 +212,19 @@ class StatusBarController {
         }
     }
     
+    /// Cleans up resources. Should be called before deallocation.
+    func cleanup() {
+        stopConnectingAnimation()
+    }
+    
     deinit {
-        connectingAnimationTimer?.invalidate()
-        connectingAnimationTimer = nil
+        // deinit may be called from any thread, but Timer operations must be on main thread
+        // Use async dispatch to ensure main thread execution
+        if let timer = connectingAnimationTimer {
+            DispatchQueue.main.async {
+                timer.invalidate()
+            }
+        }
     }
 
 }

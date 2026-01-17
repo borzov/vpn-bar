@@ -37,8 +37,18 @@ enum AppConstants {
     
     /// URLs used in the application.
     enum URLs {
-        static let repository = URL(string: "https://github.com/borzov/vpn-bar")!
-        static let networkPreferences = URL(string: "x-apple.systempreferences:com.apple.Network-Settings.extension")!
+        static let repository: URL = {
+            guard let url = URL(string: "https://github.com/borzov/vpn-bar") else {
+                fatalError("Invalid repository URL")
+            }
+            return url
+        }()
+        static let networkPreferences: URL = {
+            guard let url = URL(string: "x-apple.systempreferences:com.apple.Network-Settings.extension") else {
+                fatalError("Invalid network preferences URL")
+            }
+            return url
+        }()
     }
 }
 

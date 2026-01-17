@@ -7,10 +7,17 @@ import os.log
 @MainActor
 class VPNManager: VPNManagerProtocol {
     static let shared: VPNManager = {
-        // Create session manager with weak reference to avoid retain cycle
+        // Create session manager with notification-based status updates to avoid recursion
         let statusHandler: @Sendable (String, SCNetworkConnectionStatus) -> Void = { connectionID, status in
             Task { @MainActor in
-                VPNManager.shared.updateConnectionStatus(identifier: connectionID, newStatus: status)
+                NotificationCenter.default.post(
+                    name: .vpnConnectionStatusDidUpdate,
+                    object: nil,
+                    userInfo: [
+                        "connectionID": connectionID,
+                        "status": status
+                    ]
+                )
             }
         }
         
@@ -20,6 +27,19 @@ class VPNManager: VPNManagerProtocol {
             configurationLoader: VPNConfigurationLoader(),
             sessionManager: sessionManager
         )
+        
+        // Subscribe to status updates after initialization
+        NotificationCenter.default.addObserver(
+            forName: .vpnConnectionStatusDidUpdate,
+            object: nil,
+            queue: .main
+        ) { notification in
+            guard let connectionID = notification.userInfo?["connectionID"] as? String,
+                  let status = notification.userInfo?["status"] as? SCNetworkConnectionStatus else {
+                return
+            }
+            manager.updateConnectionStatus(identifier: connectionID, newStatus: status)
+        }
         
         return manager
     }()
@@ -71,13 +91,32 @@ class VPNManager: VPNManagerProtocol {
             // Create default session manager if not provided
             let statusHandler: @Sendable (String, SCNetworkConnectionStatus) -> Void = { connectionID, status in
                 Task { @MainActor in
-                    VPNManager.shared.updateConnectionStatus(identifier: connectionID, newStatus: status)
+                    NotificationCenter.default.post(
+                        name: .vpnConnectionStatusDidUpdate,
+                        object: nil,
+                        userInfo: [
+                            "connectionID": connectionID,
+                            "status": status
+                        ]
+                    )
                 }
             }
             self.sessionManager = VPNSessionManager(statusUpdateHandler: statusHandler)
+            
+            // Subscribe to status updates
+            NotificationCenter.default.addObserver(
+                forName: .vpnConnectionStatusDidUpdate,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                guard let self = self,
+                      let connectionID = notification.userInfo?["connectionID"] as? String,
+                      let status = notification.userInfo?["status"] as? SCNetworkConnectionStatus else {
+                    return
+                }
+                self.updateConnectionStatus(identifier: connectionID, newStatus: status)
+            }
         }
-        
-        _ = updateInterval
         
         loadConnections(forceReload: true)
         lastFullReload = Date()
@@ -87,6 +126,7 @@ class VPNManager: VPNManagerProtocol {
     deinit {
         updateTimer?.invalidate()
         updateTimer = nil
+        NotificationCenter.default.removeObserver(self)
         // Note: deinit cannot call @MainActor methods synchronously
         // Cleanup will be performed at application termination via AppDelegate
     }
@@ -160,49 +200,78 @@ class VPNManager: VPNManagerProtocol {
             let hasSession = await sessionManager.hasSession(for: connectionID)
             
             if hasSession {
-                do {
-                    try await sessionManager.startConnection(connectionID: connectionID)
-                    updateConnectionToConnecting(connectionID: connectionID)
-                } catch {
-                    Logger.vpn.error("Failed to start connection: \(error.localizedDescription)")
-                    if attempt < retryCount {
-                        let delay = AppConstants.retryBaseDelay * pow(2.0, Double(attempt - 1))
-                        do {
-                            try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                            guard !Task.isCancelled else { return }
-                            self.connectWithRetry(to: connectionID, retryCount: retryCount, attempt: attempt + 1)
-                        } catch {
-                            // Task was cancelled
-                            return
-                        }
-                    } else {
-                        loadingError = error as? VPNError ?? .connectionFailed(underlying: error.localizedDescription)
-                        resetConnectionToDisconnected(connectionID: connectionID)
-                    }
-                }
+                await attemptConnection(connectionID: connectionID, retryCount: retryCount, attempt: attempt)
             } else {
-                if let uuid = UUID(uuidString: connectionID) {
-                    let nsUUID = uuid as NSUUID
-                    await self.sessionManager.getOrCreateSession(for: nsUUID)
-                    
-                    let hasSessionNow = await self.sessionManager.hasSession(for: connectionID)
-                    if hasSessionNow {
-                        do {
-                            try await self.sessionManager.startConnection(connectionID: connectionID)
-                            self.updateConnectionToConnecting(connectionID: connectionID)
-                        } catch {
-                            self.handleConnectionFailure(connectionID: connectionID, retryCount: retryCount, attempt: attempt)
-                        }
-                    } else {
-                        self.handleConnectionFailure(connectionID: connectionID, retryCount: retryCount, attempt: attempt)
-                    }
-                } else {
-                    loadingError = .sessionNotFound(id: connectionID)
-                    Logger.vpn.error("Invalid UUID for connection: \(connectionID)")
-                    resetConnectionToDisconnected(connectionID: connectionID)
-                }
+                await createSessionAndConnect(connectionID: connectionID, retryCount: retryCount, attempt: attempt)
             }
         }
+    }
+    
+    /// Attempts to start connection when session already exists.
+    private func attemptConnection(connectionID: String, retryCount: Int, attempt: Int) async {
+        do {
+            try await sessionManager.startConnection(connectionID: connectionID)
+            handleConnectionSuccess(connectionID: connectionID)
+        } catch {
+            Logger.vpn.error("Failed to start connection: \(error.localizedDescription)")
+            if attempt < retryCount {
+                await scheduleRetry(connectionID: connectionID, retryCount: retryCount, attempt: attempt, error: error)
+            } else {
+                handleConnectionError(connectionID: connectionID, error: error)
+            }
+        }
+    }
+    
+    /// Creates session and attempts connection.
+    private func createSessionAndConnect(connectionID: String, retryCount: Int, attempt: Int) async {
+        guard let uuid = UUID(uuidString: connectionID) else {
+            loadingError = .sessionNotFound(id: connectionID)
+            Logger.vpn.error("Invalid UUID for connection: \(connectionID)")
+            resetConnectionToDisconnected(connectionID: connectionID)
+            return
+        }
+        
+        let nsUUID = uuid as NSUUID
+        await sessionManager.getOrCreateSession(for: nsUUID)
+        
+        let hasSessionNow = await sessionManager.hasSession(for: connectionID)
+        guard hasSessionNow else {
+            handleConnectionFailure(connectionID: connectionID, retryCount: retryCount, attempt: attempt)
+            return
+        }
+        
+        do {
+            try await sessionManager.startConnection(connectionID: connectionID)
+            handleConnectionSuccess(connectionID: connectionID)
+        } catch {
+            handleConnectionFailure(connectionID: connectionID, retryCount: retryCount, attempt: attempt)
+        }
+    }
+    
+    /// Handles successful connection start.
+    private func handleConnectionSuccess(connectionID: String) {
+        updateConnectionToConnecting(connectionID: connectionID)
+    }
+    
+    /// Schedules retry with exponential backoff.
+    private func scheduleRetry(connectionID: String, retryCount: Int, attempt: Int, error: Error) async {
+        let delay = AppConstants.retryBaseDelay * pow(2.0, Double(attempt - 1))
+        Logger.vpn.info("Connection failed, retrying in \(delay) seconds... (attempt \(attempt)/\(retryCount))")
+        
+        do {
+            try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            connectWithRetry(to: connectionID, retryCount: retryCount, attempt: attempt + 1)
+        } catch {
+            // Task was cancelled
+            return
+        }
+    }
+    
+    /// Handles connection error when all retries are exhausted.
+    private func handleConnectionError(connectionID: String, error: Error) {
+        loadingError = error as? VPNError ?? .connectionFailed(underlying: error.localizedDescription)
+        resetConnectionToDisconnected(connectionID: connectionID)
     }
     
     /// Updates connection status if it differs from current status.

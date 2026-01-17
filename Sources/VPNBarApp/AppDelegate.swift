@@ -45,6 +45,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         HotkeyManager.shared.cleanup()
         Task { @MainActor in
             VPNManager.shared.cleanup()
+            statusBarController?.cleanup()
         }
     }
     

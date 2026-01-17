@@ -17,6 +17,9 @@ class HotkeyManager: HotkeyManagerProtocol {
     /// Set to false in deinit and cleanup to prevent callback execution
     /// after manager memory is deallocated. Checked before each callback invocation.
     private var isValid = true
+    /// Flag to track if self was retained for event handler.
+    /// Used to properly balance retain/release calls.
+    private var isRetainedForEventHandler = false
 
     private init() {
         setupEventHandler()
@@ -38,6 +41,7 @@ class HotkeyManager: HotkeyManagerProtocol {
 
         // Use passRetained to ensure manager stays alive during event handler lifetime
         let userData = Unmanaged.passRetained(self).toOpaque()
+        isRetainedForEventHandler = true
 
         let eventHandlerUPP: EventHandlerUPP = { (nextHandler, theEvent, userData) -> OSStatus in
             guard let userData = userData else {
@@ -150,7 +154,10 @@ class HotkeyManager: HotkeyManagerProtocol {
             
             // Release the retained reference from passRetained
             // This balances the retain from setupEventHandler
-            Unmanaged.passUnretained(self).release()
+            if isRetainedForEventHandler {
+                Unmanaged.passUnretained(self).release()
+                isRetainedForEventHandler = false
+            }
             
             eventHandler = nil
         }

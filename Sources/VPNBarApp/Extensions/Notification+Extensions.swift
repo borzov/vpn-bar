@@ -9,8 +9,8 @@ extension Notification.Name {
 
     /// Notification about connection name display change.
     static let showConnectionNameDidChange = Notification.Name("ShowConnectionNameDidChange")
-
-    /// Notification about VPN connections list change.
-    static let vpnConnectionsDidChange = Notification.Name("VPNConnectionsDidChange")
+    
+    /// Notification about VPN connection status update.
+    static let vpnConnectionStatusDidUpdate = Notification.Name("VPNConnectionStatusDidUpdate")
 }
 

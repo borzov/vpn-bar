@@ -23,18 +23,48 @@ final class ConnectionHistoryManager {
     private let historyKey = "connectionHistory"
     private let maxHistoryEntries = 100
     
-    private init() {}
+    /// In-memory cache to avoid frequent UserDefaults I/O.
+    private var cachedHistory: [ConnectionHistoryEntry]?
+    private var isDirty = false
+    
+    private init() {
+        loadHistoryFromUserDefaults()
+    }
+    
+    /// Loads history from UserDefaults into cache.
+    private func loadHistoryFromUserDefaults() {
+        guard let data = userDefaults.data(forKey: historyKey),
+              let entries = try? JSONDecoder().decode([ConnectionHistoryEntry].self, from: data) else {
+            cachedHistory = []
+            return
+        }
+        cachedHistory = entries.sorted { $0.timestamp > $1.timestamp }
+    }
+    
+    /// Saves history from cache to UserDefaults.
+    private func saveHistoryToUserDefaults() {
+        guard isDirty, let history = cachedHistory else { return }
+        
+        if let data = try? JSONEncoder().encode(history) {
+            userDefaults.set(data, forKey: historyKey)
+            isDirty = false
+        }
+    }
     
     /// Gets connection history.
     /// - Parameter limit: Maximum number of entries (default is 50).
     /// - Returns: Array of history entries sorted by time (newest first).
     func getHistory(limit: Int = 50) -> [ConnectionHistoryEntry] {
-        guard let data = userDefaults.data(forKey: historyKey),
-              let entries = try? JSONDecoder().decode([ConnectionHistoryEntry].self, from: data) else {
+        // Ensure cache is loaded
+        if cachedHistory == nil {
+            loadHistoryFromUserDefaults()
+        }
+        
+        guard let history = cachedHistory else {
             return []
         }
         
-        return Array(entries.sorted { $0.timestamp > $1.timestamp }.prefix(limit))
+        return Array(history.prefix(limit))
     }
     
     /// Adds entry to connection history.
@@ -51,31 +81,32 @@ final class ConnectionHistoryManager {
             action: action
         )
         
-        // Load existing history without sorting (raw data)
-        guard let data = userDefaults.data(forKey: historyKey),
-              var history = try? JSONDecoder().decode([ConnectionHistoryEntry].self, from: data) else {
-            // No existing history, create new with single entry
-            if let data = try? JSONEncoder().encode([entry]) {
-                userDefaults.set(data, forKey: historyKey)
-            }
-            return
+        // Ensure cache is loaded
+        if cachedHistory == nil {
+            loadHistoryFromUserDefaults()
         }
+        
+        var history = cachedHistory ?? []
         
         // Insert new entry at the beginning (most recent)
         history.insert(entry, at: 0)
         
-        // Trim to max entries if needed (no sorting required, already in order)
+        // Trim to max entries if needed
         if history.count > maxHistoryEntries {
             history = Array(history.prefix(maxHistoryEntries))
         }
         
-        if let data = try? JSONEncoder().encode(history) {
-            userDefaults.set(data, forKey: historyKey)
-        }
+        cachedHistory = history
+        isDirty = true
+        
+        // Save immediately for data persistence
+        saveHistoryToUserDefaults()
     }
     
     /// Clears connection history.
     func clearHistory() {
+        cachedHistory = []
+        isDirty = true
         userDefaults.removeObject(forKey: historyKey)
     }
 }

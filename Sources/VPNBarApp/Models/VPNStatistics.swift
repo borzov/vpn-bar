@@ -8,6 +8,7 @@ struct VPNStatistics: Codable, Equatable {
     var lastConnectionDate: Date?
     var lastDisconnectionDate: Date?
     var longestSessionDuration: TimeInterval = 0
+    var shortestSessionDuration: TimeInterval? = nil
     /// Average session duration in seconds.
     var averageSessionDuration: TimeInterval {
         guard totalConnections > 0 else { return 0 }

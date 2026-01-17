@@ -56,52 +56,67 @@ class NotificationManager: NSObject, NotificationManagerProtocol {
         }
     }
     
+    /// Builds notification content for VPN status change.
+    /// - Parameters:
+    ///   - isConnected: Connection state.
+    ///   - connectionName: Connection name (optional).
+    /// - Returns: Tuple with title and body strings.
+    private func buildNotificationContent(isConnected: Bool, connectionName: String?) -> (title: String, body: String) {
+        let title: String
+        let body: String
+        
+        if isConnected {
+            title = NSLocalizedString(
+                "notifications.title.connected",
+                comment: "Notification title when VPN connects"
+            )
+            if let name = connectionName {
+                body = String(
+                    format: NSLocalizedString(
+                        "notifications.body.connectedTo",
+                        comment: "Notification body with VPN name on connect"
+                    ),
+                    name
+                )
+            } else {
+                body = NSLocalizedString(
+                    "notifications.body.connected",
+                    comment: "Notification body when VPN connects without name"
+                )
+            }
+        } else {
+            title = NSLocalizedString(
+                "notifications.title.disconnected",
+                comment: "Notification title when VPN disconnects"
+            )
+            if let name = connectionName {
+                body = String(
+                    format: NSLocalizedString(
+                        "notifications.body.disconnectedFrom",
+                        comment: "Notification body with VPN name on disconnect"
+                    ),
+                    name
+                )
+            } else {
+                body = NSLocalizedString(
+                    "notifications.body.disconnected",
+                    comment: "Notification body when VPN disconnects without name"
+                )
+            }
+        }
+        
+        return (title: title, body: body)
+    }
+    
     /// Sends notification about VPN connection/disconnection.
     func sendVPNNotification(isConnected: Bool, connectionName: String?) {
         let center = UNUserNotificationCenter.current()
         
         Task {
             let content = UNMutableNotificationContent()
-            
-            if isConnected {
-                content.title = NSLocalizedString(
-                    "notifications.title.connected",
-                    comment: "Notification title when VPN connects"
-                )
-                if let name = connectionName {
-                    content.body = String(
-                        format: NSLocalizedString(
-                            "notifications.body.connectedTo",
-                            comment: "Notification body with VPN name on connect"
-                        ),
-                        name
-                    )
-                } else {
-                    content.body = NSLocalizedString(
-                        "notifications.body.connected",
-                        comment: "Notification body when VPN connects without name"
-                    )
-                }
-            } else {
-                content.title = NSLocalizedString(
-                    "notifications.title.disconnected",
-                    comment: "Notification title when VPN disconnects"
-                )
-                if let name = connectionName {
-                    content.body = String(
-                        format: NSLocalizedString(
-                            "notifications.body.disconnectedFrom",
-                            comment: "Notification body with VPN name on disconnect"
-                        ),
-                        name
-                    )
-                } else {
-                    content.body = NSLocalizedString(
-                        "notifications.body.disconnected",
-                        comment: "Notification body when VPN disconnects without name"
-                    )
-                }
-            }
+            let notificationContent = buildNotificationContent(isConnected: isConnected, connectionName: connectionName)
+            content.title = notificationContent.title
+            content.body = notificationContent.body
             
             content.sound = .default
             
@@ -135,36 +150,9 @@ class NotificationManager: NSObject, NotificationManagerProtocol {
     @available(macOS, deprecated: 11.0)
     private func sendLegacyNotification(isConnected: Bool, connectionName: String?) {
         let notification = NSUserNotification()
-        
-        if isConnected {
-            notification.title = NSLocalizedString(
-                "notifications.title.connected",
-                comment: "Notification title when VPN connects"
-            )
-            if let name = connectionName {
-                notification.informativeText = String(
-                    format: NSLocalizedString(
-                        "notifications.body.connectedTo",
-                        comment: "Notification body with VPN name on connect"
-                    ),
-                    name
-                )
-            }
-        } else {
-            notification.title = NSLocalizedString(
-                "notifications.title.disconnected",
-                comment: "Notification title when VPN disconnects"
-            )
-            if let name = connectionName {
-                notification.informativeText = String(
-                    format: NSLocalizedString(
-                        "notifications.body.disconnectedFrom",
-                        comment: "Notification body with VPN name on disconnect"
-                    ),
-                    name
-                )
-            }
-        }
+        let notificationContent = buildNotificationContent(isConnected: isConnected, connectionName: connectionName)
+        notification.title = notificationContent.title
+        notification.informativeText = notificationContent.body
         
         notification.soundName = NSUserNotificationDefaultSoundName
         
