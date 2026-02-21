@@ -35,5 +35,17 @@ protocol SettingsManagerProtocol {
     
     /// Identifier of the last used VPN connection.
     var lastUsedConnectionID: String? { get set }
+
+    /// Per-connection hotkey assignments.
+    var connectionHotkeys: [ConnectionHotkey] { get set }
+
+    /// Saves a hotkey for a specific connection.
+    func saveConnectionHotkey(connectionID: String, keyCode: UInt32, modifiers: UInt32)
+
+    /// Removes the hotkey for a specific connection.
+    func removeConnectionHotkey(connectionID: String)
+
+    /// Returns the hotkey for a specific connection, if any.
+    func connectionHotkey(for connectionID: String) -> ConnectionHotkey?
 }
 

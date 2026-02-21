@@ -7,7 +7,6 @@
 "menu.action.openNetworkPreferences" = "Open Network Preferences...";
 "menu.action.settings" = "Settings";
 "menu.action.quit" = "Quit";
-"menu.action.disconnectAll" = "Disconnect All";
 "menu.status.connected" = "Connected";
 "menu.status.connecting" = "Connecting...";
 "menu.status.disconnecting" = "Disconnecting...";
@@ -57,10 +56,21 @@
 "settings.hotkey.validation.missingModifier" = "Hotkey must include at least one modifier key (⌘, ⌃, or ⌥).";
 "settings.hotkey.validation.reserved" = "This key combination is reserved by the system. Please choose another.";
 "settings.hotkey.keyPlaceholder" = "Key %d";
+"settings.hotkey.perConnection.title" = "Per-Connection Hotkeys";
+"settings.hotkey.perConnection.description" = "Assign individual hotkeys to toggle specific VPN connections.";
+"settings.hotkey.perConnection.record" = "Record Shortcut";
+"settings.hotkey.perConnection.none" = "No VPN connections available.";
+"settings.hotkey.validation.conflict" = "This key combination is already assigned. Please choose another.";
 "settings.about.version" = "Version %@";
 "settings.about.author" = "Author: Maksim Borzov";
 "settings.about.description" = "A menu bar utility to quickly view, connect, and manage your macOS VPN configurations. Keeps status at a glance and toggles with a global hotkey.";
 "settings.about.repoButton" = "Open repository";
+
+// MARK: - Network Info
+"menu.networkInfo.interface" = "Interface";
+"menu.networkInfo.fetching" = "Fetching network info…";
+"menu.networkInfo.unavailable" = "Network info unavailable";
+"menu.networkInfo.copyIP" = "Click to copy IP address";
 
 // MARK: - Errors
 "error.vpn.noConfigurations" = "No VPN configurations found. Configure VPN in System Preferences → Network.";

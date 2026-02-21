@@ -7,8 +7,8 @@ import os.log
 @MainActor
 class SettingsManager: SettingsManagerProtocol {
     static let shared = SettingsManager()
-    
-    private let userDefaults = UserDefaults.standard
+
+    private let userDefaults: UserDefaults
     private let updateIntervalKey = "updateInterval"
     private let hotkeyKeyCodeKey = "hotkeyKeyCode"
     private let hotkeyModifiersKey = "hotkeyModifiers"
@@ -17,8 +17,18 @@ class SettingsManager: SettingsManagerProtocol {
     private let launchAtLoginKey = "launchAtLogin"
     private let soundFeedbackEnabledKey = "soundFeedbackEnabled"
     private let lastUsedConnectionIDKey = "lastUsedConnectionID"
-    
-    private init() {}
+    private let connectionHotkeysKey = "connectionHotkeys"
+
+    private var cachedConnectionHotkeys: [ConnectionHotkey]?
+
+    private init() {
+        self.userDefaults = UserDefaults.standard
+    }
+
+    /// Designated initializer for tests with custom UserDefaults.
+    init(userDefaults: UserDefaults) {
+        self.userDefaults = userDefaults
+    }
     
     /// VPN status update interval in seconds.
     var updateInterval: TimeInterval {
@@ -172,6 +182,43 @@ class SettingsManager: SettingsManagerProtocol {
                 userDefaults.removeObject(forKey: lastUsedConnectionIDKey)
             }
         }
+    }
+
+    /// Per-connection hotkey assignments.
+    var connectionHotkeys: [ConnectionHotkey] {
+        get {
+            if let cached = cachedConnectionHotkeys {
+                return cached
+            }
+            guard let data = userDefaults.data(forKey: connectionHotkeysKey),
+                  let hotkeys = try? JSONDecoder().decode([ConnectionHotkey].self, from: data) else {
+                cachedConnectionHotkeys = []
+                return []
+            }
+            cachedConnectionHotkeys = hotkeys
+            return hotkeys
+        }
+        set {
+            cachedConnectionHotkeys = newValue
+            if let data = try? JSONEncoder().encode(newValue) {
+                userDefaults.set(data, forKey: connectionHotkeysKey)
+            }
+            NotificationCenter.default.post(name: .connectionHotkeysDidChange, object: nil)
+        }
+    }
+
+    func saveConnectionHotkey(connectionID: String, keyCode: UInt32, modifiers: UInt32) {
+        var hotkeys = connectionHotkeys.filter { $0.connectionID != connectionID }
+        hotkeys.append(ConnectionHotkey(connectionID: connectionID, keyCode: keyCode, modifiers: modifiers))
+        connectionHotkeys = hotkeys
+    }
+
+    func removeConnectionHotkey(connectionID: String) {
+        connectionHotkeys = connectionHotkeys.filter { $0.connectionID != connectionID }
+    }
+
+    func connectionHotkey(for connectionID: String) -> ConnectionHotkey? {
+        return connectionHotkeys.first { $0.connectionID == connectionID }
     }
 }
 

@@ -7,7 +7,6 @@
 "menu.action.openNetworkPreferences" = "Открыть настройки сети...";
 "menu.action.settings" = "Настройки";
 "menu.action.quit" = "Выйти";
-"menu.action.disconnectAll" = "Отключить все";
 "menu.status.connected" = "подключено";
 "menu.status.connecting" = "подключение...";
 "menu.status.disconnecting" = "отключение...";
@@ -57,10 +56,21 @@
 "settings.hotkey.validation.missingModifier" = "Комбинация должна содержать хотя бы одну клавишу-модификатор (⌘, ⌃ или ⌥).";
 "settings.hotkey.validation.reserved" = "Эта комбинация клавиш зарезервирована системой. Выберите другую.";
 "settings.hotkey.keyPlaceholder" = "Клавиша %d";
+"settings.hotkey.perConnection.title" = "Горячие клавиши для подключений";
+"settings.hotkey.perConnection.description" = "Назначьте горячие клавиши для переключения конкретных VPN-подключений.";
+"settings.hotkey.perConnection.record" = "Записать комбинацию";
+"settings.hotkey.perConnection.none" = "Нет доступных VPN-подключений.";
+"settings.hotkey.validation.conflict" = "Эта комбинация клавиш уже назначена. Выберите другую.";
 "settings.about.version" = "Версия %@";
 "settings.about.author" = "Автор: Максим Борзов";
 "settings.about.description" = "Утилита, работающая в менюбаре: помогает быстро смотреть статус, подключать и управлять VPN-конфигурациями macOS, есть глобальная горячая клавиша для переключения.";
 "settings.about.repoButton" = "Открыть репозиторий";
+
+// MARK: - Network Info
+"menu.networkInfo.interface" = "Интерфейс";
+"menu.networkInfo.fetching" = "Получение информации о сети…";
+"menu.networkInfo.unavailable" = "Информация о сети недоступна";
+"menu.networkInfo.copyIP" = "Нажмите, чтобы скопировать IP-адрес";
 
 // MARK: - Errors
 "error.vpn.noConfigurations" = "VPN-подключения не найдены. Настройте VPN в Системных настройках → Сеть.";

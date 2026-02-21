@@ -218,13 +218,7 @@ class StatusBarController {
     }
     
     deinit {
-        // deinit may be called from any thread, but Timer operations must be on main thread
-        // Use async dispatch to ensure main thread execution
-        if let timer = connectingAnimationTimer {
-            DispatchQueue.main.async {
-                timer.invalidate()
-            }
-        }
+        connectingAnimationTimer?.invalidate()
     }
 
 }

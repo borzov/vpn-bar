@@ -7,7 +7,6 @@
 "menu.action.openNetworkPreferences" = "打开网络偏好设置…";
 "menu.action.settings" = "设置";
 "menu.action.quit" = "退出";
-"menu.action.disconnectAll" = "断开所有连接";
 "menu.status.connected" = "已连接";
 "menu.status.connecting" = "正在连接…";
 "menu.status.disconnecting" = "正在断开…";
@@ -57,10 +56,21 @@
 "settings.hotkey.validation.missingModifier" = "快捷键需至少包含一个修饰键（⌘、⌃ 或 ⌥）。";
 "settings.hotkey.validation.reserved" = "该组合被系统保留，请选择其他组合。";
 "settings.hotkey.keyPlaceholder" = "按键 %d";
+"settings.hotkey.perConnection.title" = "连接专属快捷键";
+"settings.hotkey.perConnection.description" = "为特定 VPN 连接分配独立的快捷键。";
+"settings.hotkey.perConnection.record" = "录制快捷键";
+"settings.hotkey.perConnection.none" = "没有可用的 VPN 连接。";
+"settings.hotkey.validation.conflict" = "此组合键已被使用，请选择其他组合。";
 "settings.about.version" = "版本 %@";
 "settings.about.author" = "作者：Maksim Borzov";
 "settings.about.description" = "一款菜单栏工具，可快速查看状态、连接和管理 macOS 的 VPN 配置，并支持全局快捷键切换。";
 "settings.about.repoButton" = "打开仓库";
+
+// MARK: - Network Info
+"menu.networkInfo.interface" = "接口";
+"menu.networkInfo.fetching" = "正在获取网络信息…";
+"menu.networkInfo.unavailable" = "网络信息不可用";
+"menu.networkInfo.copyIP" = "点击复制 IP 地址";
 
 // MARK: - Errors
 "error.vpn.noConfigurations" = "未找到 VPN 配置。请在系统设置 → 网络中配置。";

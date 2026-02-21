@@ -6,19 +6,20 @@ import os.log
 class HotkeyManager: HotkeyManagerProtocol {
     static let shared = HotkeyManager()
 
-    private var hotKeyRef: EventHotKeyRef?
-    private var hotKeyID = EventHotKeyID(signature: FourCharCode(fromString: "VPNT"), id: 1)
+    private var globalHotKeyRef: EventHotKeyRef?
+    private var globalHotKeyID = EventHotKeyID(signature: FourCharCode(fromString: "VPNT"), id: 1)
     private var isRegistered = false
     private var callback: (() -> Void)?
     private var eventHandler: EventHandlerRef?
 
+    private var connectionHotKeys: [String: (ref: EventHotKeyRef, callback: () -> Void)] = [:]
+    private var hotkeyIDToConnectionID: [UInt32: String] = [:]
+    private var nextConnectionHotkeyID: UInt32 = 100
+
     private var isSetup = false
     /// Flag to prevent use-after-free in event handler callback.
-    /// Set to false in deinit and cleanup to prevent callback execution
-    /// after manager memory is deallocated. Checked before each callback invocation.
     private var isValid = true
     /// Flag to track if self was retained for event handler.
-    /// Used to properly balance retain/release calls.
     private var isRetainedForEventHandler = false
 
     private init() {
@@ -60,24 +61,36 @@ class HotkeyManager: HotkeyManagerProtocol {
             )
 
             if err == noErr {
-                // Use takeUnretainedValue since we retained in passRetained
                 let manager = Unmanaged<HotkeyManager>.fromOpaque(userData).takeUnretainedValue()
 
-                // Safety check: ensure manager hasn't been invalidated
                 guard manager.isValid else {
                     return OSStatus(eventNotHandledErr)
                 }
 
-                if hotKeyID.id == manager.hotKeyID.id &&
-                   hotKeyID.signature == manager.hotKeyID.signature {
+                // Global toggle hotkey
+                if hotKeyID.id == manager.globalHotKeyID.id &&
+                   hotKeyID.signature == manager.globalHotKeyID.signature {
                     if let callback = manager.callback {
                         DispatchQueue.main.async {
-                            // Double-check validity before executing callback
                             guard manager.isValid else { return }
                             callback()
                         }
                     }
                     return noErr
+                }
+
+                // Per-connection hotkey
+                let connectionSignature = FourCharCode(fromString: "VPNC")
+                if hotKeyID.signature == connectionSignature {
+                    if let connectionID = manager.hotkeyIDToConnectionID[hotKeyID.id],
+                       let entry = manager.connectionHotKeys[connectionID] {
+                        let cb = entry.callback
+                        DispatchQueue.main.async {
+                            guard manager.isValid else { return }
+                            cb()
+                        }
+                        return noErr
+                    }
                 }
             }
 
@@ -107,9 +120,47 @@ class HotkeyManager: HotkeyManagerProtocol {
     ///   - callback: Press handler.
     func registerHotkey(keyCode: UInt32, modifiers: UInt32, callback: @escaping () -> Void) {
         unregisterHotkey()
-        
+
         self.callback = callback
-        
+
+        var hotKeyRef: EventHotKeyRef?
+        let status = RegisterEventHotKey(
+            keyCode,
+            modifiers,
+            globalHotKeyID,
+            GetApplicationEventTarget(),
+            0,
+            &hotKeyRef
+        )
+
+        if status == noErr, let ref = hotKeyRef {
+            self.globalHotKeyRef = ref
+            self.isRegistered = true
+            Logger.hotkey.info("Global hotkey registered: keyCode=\(keyCode), modifiers=\(modifiers)")
+        } else {
+            self.callback = nil
+            Logger.hotkey.error("Failed to register global hotkey: status=\(status)")
+        }
+    }
+
+    /// Unregisters the global hotkey and clears the callback.
+    func unregisterHotkey() {
+        if let ref = globalHotKeyRef, isRegistered {
+            UnregisterEventHotKey(ref)
+            globalHotKeyRef = nil
+            isRegistered = false
+        }
+        callback = nil
+    }
+
+    func registerConnectionHotkey(connectionID: String, keyCode: UInt32, modifiers: UInt32, callback: @escaping () -> Void) {
+        unregisterConnectionHotkey(connectionID: connectionID)
+
+        let hotkeyID = nextConnectionHotkeyID
+        nextConnectionHotkeyID += 1
+
+        let hotKeyID = EventHotKeyID(signature: FourCharCode(fromString: "VPNC"), id: hotkeyID)
+
         var hotKeyRef: EventHotKeyRef?
         let status = RegisterEventHotKey(
             keyCode,
@@ -119,35 +170,38 @@ class HotkeyManager: HotkeyManagerProtocol {
             0,
             &hotKeyRef
         )
-        
+
         if status == noErr, let ref = hotKeyRef {
-            self.hotKeyRef = ref
-            self.isRegistered = true
-            Logger.hotkey.info("Hotkey registered: keyCode=\(keyCode), modifiers=\(modifiers)")
+            connectionHotKeys[connectionID] = (ref: ref, callback: callback)
+            hotkeyIDToConnectionID[hotkeyID] = connectionID
+            Logger.hotkey.info("Connection hotkey registered: \(connectionID), keyCode=\(keyCode)")
         } else {
-            self.callback = nil
-            Logger.hotkey.error("Failed to register hotkey: status=\(status)")
+            Logger.hotkey.error("Failed to register connection hotkey: status=\(status)")
         }
     }
-    
-    /// Unregisters the hotkey and clears the callback.
-    func unregisterHotkey() {
-        if let ref = hotKeyRef, isRegistered {
-            UnregisterEventHotKey(ref)
-            hotKeyRef = nil
-            isRegistered = false
+
+    func unregisterConnectionHotkey(connectionID: String) {
+        guard let entry = connectionHotKeys.removeValue(forKey: connectionID) else { return }
+        UnregisterEventHotKey(entry.ref)
+        hotkeyIDToConnectionID = hotkeyIDToConnectionID.filter { $0.value != connectionID }
+    }
+
+    func unregisterAllConnectionHotkeys() {
+        for (_, entry) in connectionHotKeys {
+            UnregisterEventHotKey(entry.ref)
         }
-        callback = nil
+        connectionHotKeys.removeAll()
+        hotkeyIDToConnectionID.removeAll()
     }
     
     /// Explicitly cleans up all resources. Should be called when the application terminates.
     func cleanup() {
         Logger.hotkey.info("Cleaning up hotkey manager")
 
-        // Mark as invalid first to prevent any pending callbacks from executing
         isValid = false
 
         unregisterHotkey()
+        unregisterAllConnectionHotkeys()
 
         if let handler = eventHandler {
             RemoveEventHandler(handler)

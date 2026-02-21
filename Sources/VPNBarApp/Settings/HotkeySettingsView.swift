@@ -5,21 +5,30 @@ import Carbon
 @MainActor
 final class HotkeySettingsView: NSView {
     private let settingsManager: SettingsManagerProtocol
-    
+    private let vpnManager: VPNManagerProtocol
+
     var hotkeyButton: NSButton?
     var hotkeyValidationLabel: NSTextField?
     var clearHotkeyButton: NSButton?
-    
+
     var isRecordingHotkey = false
     private var recordedKeyCode: UInt32?
     private var recordedModifiers: UInt32 = 0
     private var globalEventMonitor: Any?
     private var localEventMonitor: Any?
-    
+
+    private enum RecordingTarget {
+        case global
+        case connection(String)
+    }
+    private var recordingTarget: RecordingTarget = .global
+    private var connectionHotkeyRows: [String: ConnectionHotkeyRowView] = [:]
+
     var onHotkeyChanged: (() -> Void)?
     
-    init(settingsManager: SettingsManagerProtocol, frame: NSRect = .zero) {
+    init(settingsManager: SettingsManagerProtocol, vpnManager: VPNManagerProtocol = VPNManager.shared, frame: NSRect = .zero) {
         self.settingsManager = settingsManager
+        self.vpnManager = vpnManager
         super.init(frame: frame)
         setupView()
     }
@@ -40,7 +49,10 @@ final class HotkeySettingsView: NSView {
         
         let toggleSection = createToggleHotkeySection()
         mainStack.addArrangedSubview(toggleSection)
-        
+
+        let connectionSection = createConnectionHotkeysSection()
+        mainStack.addArrangedSubview(connectionSection)
+
         addSubview(mainStack)
         
         NSLayoutConstraint.activate([
@@ -133,10 +145,11 @@ final class HotkeySettingsView: NSView {
     
     @objc private func hotkeyButtonClicked(_ sender: NSButton) {
         if !isRecordingHotkey {
+            recordingTarget = .global
             startRecordingHotkey()
         }
     }
-    
+
     private func updateHotkeyButtonTitle(_ button: NSButton) {
         if let keyCode = settingsManager.hotkeyKeyCode, let modifiers = settingsManager.hotkeyModifiers {
             let hotkeyString = formatHotkey(keyCode: keyCode, modifiers: modifiers)
@@ -158,13 +171,26 @@ final class HotkeySettingsView: NSView {
         recordedKeyCode = nil
         recordedModifiers = 0
         clearValidationMessage()
-        hotkeyButton?.title = NSLocalizedString(
+
+        let pressKeysTitle = NSLocalizedString(
             "settings.hotkey.pressKeys",
             comment: "Button title while recording shortcut"
         )
-        hotkeyButton?.contentTintColor = .controlAccentColor
-        hotkeyButton?.layer?.borderColor = NSColor.controlAccentColor.cgColor
-        hotkeyButton?.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.08).cgColor
+
+        switch recordingTarget {
+        case .global:
+            hotkeyButton?.title = pressKeysTitle
+            hotkeyButton?.contentTintColor = .controlAccentColor
+            hotkeyButton?.layer?.borderColor = NSColor.controlAccentColor.cgColor
+            hotkeyButton?.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.08).cgColor
+        case .connection(let connectionID):
+            if let row = connectionHotkeyRows[connectionID] {
+                row.hotkeyButton.title = pressKeysTitle
+                row.hotkeyButton.contentTintColor = .controlAccentColor
+                row.hotkeyButton.layer?.borderColor = NSColor.controlAccentColor.cgColor
+                row.hotkeyButton.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.08).cgColor
+            }
+        }
         
         globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { [weak self] event in
             self?.handleHotkeyEvent(event)
@@ -226,10 +252,15 @@ final class HotkeySettingsView: NSView {
                 )
                 return
             }
-            
+
+            if let conflict = findHotkeyConflict(keyCode: keyCode, modifiers: carbonModifiers) {
+                showHotkeyValidationError(conflict)
+                return
+            }
+
             recordedKeyCode = keyCode
             recordedModifiers = carbonModifiers
-            
+
             stopRecordingHotkey()
             saveHotkey()
         }
@@ -269,15 +300,25 @@ final class HotkeySettingsView: NSView {
     
     private func stopRecordingHotkey() {
         isRecordingHotkey = false
-        
-        if let button = hotkeyButton {
-            updateHotkeyButtonTitle(button)
-            button.contentTintColor = .labelColor
-            button.layer?.borderColor = NSColor.separatorColor.cgColor
-            button.layer?.backgroundColor = NSColor.clear.cgColor
+
+        switch recordingTarget {
+        case .global:
+            if let button = hotkeyButton {
+                updateHotkeyButtonTitle(button)
+                button.contentTintColor = .labelColor
+                button.layer?.borderColor = NSColor.separatorColor.cgColor
+                button.layer?.backgroundColor = NSColor.clear.cgColor
+            }
+        case .connection(let connectionID):
+            if let row = connectionHotkeyRows[connectionID] {
+                updateConnectionHotkeyButton(row.hotkeyButton, connectionID: connectionID)
+                row.hotkeyButton.contentTintColor = .labelColor
+                row.hotkeyButton.layer?.borderColor = NSColor.separatorColor.cgColor
+                row.hotkeyButton.layer?.backgroundColor = NSColor.clear.cgColor
+            }
         }
         clearValidationMessage()
-        
+
         if let monitor = globalEventMonitor {
             NSEvent.removeMonitor(monitor)
             globalEventMonitor = nil
@@ -302,13 +343,22 @@ final class HotkeySettingsView: NSView {
     
     private func saveHotkey() {
         guard let keyCode = recordedKeyCode else { return }
-        
-        settingsManager.saveHotkey(keyCode: keyCode, modifiers: recordedModifiers)
-        if let button = hotkeyButton {
-            updateHotkeyButtonTitle(button)
+
+        switch recordingTarget {
+        case .global:
+            settingsManager.saveHotkey(keyCode: keyCode, modifiers: recordedModifiers)
+            if let button = hotkeyButton {
+                updateHotkeyButtonTitle(button)
+            }
+            clearValidationMessage()
+            updateHotkeyUI()
+        case .connection(let connectionID):
+            settingsManager.saveConnectionHotkey(connectionID: connectionID, keyCode: keyCode, modifiers: recordedModifiers)
+            if let row = connectionHotkeyRows[connectionID] {
+                updateConnectionHotkeyButton(row.hotkeyButton, connectionID: connectionID)
+                row.updateClearButtonVisibility(hasHotkey: true)
+            }
         }
-        clearValidationMessage()
-        updateHotkeyUI()
         onHotkeyChanged?()
     }
     
@@ -391,6 +441,177 @@ final class HotkeySettingsView: NSView {
         }
     }
     
+    // MARK: - Per-Connection Hotkeys
+
+    private func createConnectionHotkeysSection() -> NSView {
+        let sectionStack = NSStackView()
+        sectionStack.orientation = .vertical
+        sectionStack.alignment = .leading
+        sectionStack.distribution = .fill
+        sectionStack.spacing = 12
+
+        let sectionLabel = makeSectionLabel(
+            NSLocalizedString(
+                "settings.hotkey.perConnection.title",
+                comment: "Per-connection hotkeys section title"
+            )
+        )
+        sectionStack.addArrangedSubview(sectionLabel)
+
+        let connections = vpnManager.connections
+        if connections.isEmpty {
+            let emptyLabel = makeDescriptionLabel(
+                NSLocalizedString(
+                    "settings.hotkey.perConnection.none",
+                    comment: "No connections available for hotkey assignment"
+                )
+            )
+            sectionStack.addArrangedSubview(emptyLabel)
+        } else {
+            let containerBox = NSBox()
+            containerBox.boxType = .custom
+            containerBox.cornerRadius = 6
+            containerBox.borderWidth = 1
+            containerBox.borderColor = NSColor.separatorColor
+            containerBox.fillColor = NSColor.controlBackgroundColor
+            containerBox.contentViewMargins = NSSize(width: 0, height: 0)
+            containerBox.translatesAutoresizingMaskIntoConstraints = false
+
+            let listStack = NSStackView()
+            listStack.orientation = .vertical
+            listStack.alignment = .leading
+            listStack.distribution = .fill
+            listStack.spacing = 0
+            listStack.translatesAutoresizingMaskIntoConstraints = false
+
+            for (index, connection) in connections.enumerated() {
+                let row = ConnectionHotkeyRowView(
+                    connectionName: connection.name,
+                    connectionID: connection.id,
+                    hasHotkey: settingsManager.connectionHotkey(for: connection.id) != nil
+                )
+                updateConnectionHotkeyButton(row.hotkeyButton, connectionID: connection.id)
+
+                row.onRecord = { [weak self] connectionID in
+                    guard let self = self, !self.isRecordingHotkey else { return }
+                    self.recordingTarget = .connection(connectionID)
+                    self.startRecordingHotkey()
+                }
+
+                row.onClear = { [weak self] connectionID in
+                    guard let self = self else { return }
+                    self.settingsManager.removeConnectionHotkey(connectionID: connectionID)
+                    self.updateConnectionHotkeyButton(row.hotkeyButton, connectionID: connectionID)
+                    row.updateClearButtonVisibility(hasHotkey: false)
+                    HotkeyManager.shared.unregisterConnectionHotkey(connectionID: connectionID)
+                    self.onHotkeyChanged?()
+                }
+
+                connectionHotkeyRows[connection.id] = row
+                listStack.addArrangedSubview(row)
+                row.widthAnchor.constraint(equalTo: listStack.widthAnchor).isActive = true
+
+                if index < connections.count - 1 {
+                    let separator = NSBox()
+                    separator.boxType = .separator
+                    separator.translatesAutoresizingMaskIntoConstraints = false
+                    listStack.addArrangedSubview(separator)
+                }
+            }
+
+            if let contentView = containerBox.contentView {
+                contentView.addSubview(listStack)
+                NSLayoutConstraint.activate([
+                    listStack.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 12),
+                    listStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+                    listStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
+                    listStack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -12)
+                ])
+            }
+
+            sectionStack.addArrangedSubview(containerBox)
+            containerBox.widthAnchor.constraint(equalTo: sectionStack.widthAnchor).isActive = true
+        }
+
+        let description = makeDescriptionLabel(
+            NSLocalizedString(
+                "settings.hotkey.perConnection.description",
+                comment: "Description for per-connection hotkeys"
+            )
+        )
+        description.translatesAutoresizingMaskIntoConstraints = false
+        sectionStack.addArrangedSubview(description)
+        description.widthAnchor.constraint(equalTo: sectionStack.widthAnchor).isActive = true
+
+        return sectionStack
+    }
+
+    private func updateConnectionHotkeyButton(_ button: NSButton, connectionID: String) {
+        if let hotkey = settingsManager.connectionHotkey(for: connectionID) {
+            let hotkeyString = formatHotkey(keyCode: hotkey.keyCode, modifiers: hotkey.modifiers)
+            button.title = hotkeyString
+            button.contentTintColor = .labelColor
+            button.layer?.borderColor = NSColor.separatorColor.cgColor
+        } else {
+            button.title = NSLocalizedString(
+                "settings.hotkey.perConnection.record",
+                comment: "Button title to record per-connection shortcut"
+            )
+            button.contentTintColor = .secondaryLabelColor
+            button.layer?.borderColor = NSColor.separatorColor.cgColor
+        }
+    }
+
+    private func findHotkeyConflict(keyCode: UInt32, modifiers: UInt32) -> String? {
+        // Check against global hotkey
+        switch recordingTarget {
+        case .global:
+            break
+        case .connection:
+            if let globalKey = settingsManager.hotkeyKeyCode,
+               let globalMod = settingsManager.hotkeyModifiers,
+               globalKey == keyCode && globalMod == modifiers {
+                return NSLocalizedString(
+                    "settings.hotkey.validation.conflict",
+                    comment: "Validation error when hotkey conflicts with another"
+                )
+            }
+        }
+
+        // Check against other connection hotkeys
+        let currentConnectionID: String?
+        switch recordingTarget {
+        case .global:
+            currentConnectionID = nil
+        case .connection(let id):
+            currentConnectionID = id
+        }
+
+        for hotkey in settingsManager.connectionHotkeys {
+            if hotkey.connectionID == currentConnectionID { continue }
+            if hotkey.keyCode == keyCode && hotkey.modifiers == modifiers {
+                return NSLocalizedString(
+                    "settings.hotkey.validation.conflict",
+                    comment: "Validation error when hotkey conflicts with another"
+                )
+            }
+        }
+
+        // Check global hotkey against connection hotkeys when recording global
+        if case .global = recordingTarget {
+            for hotkey in settingsManager.connectionHotkeys {
+                if hotkey.keyCode == keyCode && hotkey.modifiers == modifiers {
+                    return NSLocalizedString(
+                        "settings.hotkey.validation.conflict",
+                        comment: "Validation error when hotkey conflicts with another"
+                    )
+                }
+            }
+        }
+
+        return nil
+    }
+
     deinit {
         isRecordingHotkey = false
         if let monitor = globalEventMonitor {
@@ -411,6 +632,8 @@ final class HotkeySettingsView: NSView {
         let label = NSTextField(wrappingLabelWithString: text)
         label.font = NSFont.systemFont(ofSize: 11)
         label.textColor = .secondaryLabelColor
+        label.cell?.lineBreakMode = .byWordWrapping
+        label.cell?.truncatesLastVisibleLine = false
         label.preferredMaxLayoutWidth = 524
         return label
     }

@@ -52,7 +52,7 @@ class SettingsWindowController {
         generalTab.view = generalView
         tabView.addTabViewItem(generalTab)
         
-        let hotkeyView = HotkeySettingsView(settingsManager: settingsManager)
+        let hotkeyView = HotkeySettingsView(settingsManager: settingsManager, vpnManager: vpnManager)
         hotkeyView.onHotkeyChanged = { [weak self] in
             self?.registerHotkey()
         }

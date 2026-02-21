@@ -16,11 +16,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusBarController = StatusBarController()
         VPNManager.shared.loadConnections(forceReload: true)
         registerHotkeyFromSettings()
-        
+        registerConnectionHotkeysFromSettings()
+
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(hotkeyDidChange),
             name: .hotkeyDidChange,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(connectionHotkeysDidChange),
+            name: .connectionHotkeysDidChange,
             object: nil
         )
     }
@@ -28,15 +35,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc @MainActor private func hotkeyDidChange() {
         registerHotkeyFromSettings()
     }
-    
+
+    @objc @MainActor private func connectionHotkeysDidChange() {
+        registerConnectionHotkeysFromSettings()
+    }
+
     @MainActor
     private func registerHotkeyFromSettings() {
         let settings = SettingsManager.shared
         guard let keyCode = settings.hotkeyKeyCode, let modifiers = settings.hotkeyModifiers else { return }
-        
+
         HotkeyManager.shared.registerHotkey(keyCode: keyCode, modifiers: modifiers) {
             Task { @MainActor in
                 StatusBarController.shared?.toggleVPNConnection()
+            }
+        }
+    }
+
+    @MainActor
+    private func registerConnectionHotkeysFromSettings() {
+        let settings = SettingsManager.shared
+        HotkeyManager.shared.unregisterAllConnectionHotkeys()
+
+        for hotkey in settings.connectionHotkeys {
+            let connectionID = hotkey.connectionID
+            HotkeyManager.shared.registerConnectionHotkey(
+                connectionID: connectionID,
+                keyCode: hotkey.keyCode,
+                modifiers: hotkey.modifiers
+            ) {
+                Task { @MainActor in
+                    VPNManager.shared.toggleConnection(connectionID)
+                }
             }
         }
     }
@@ -45,6 +75,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         HotkeyManager.shared.cleanup()
         Task { @MainActor in
             VPNManager.shared.cleanup()
+            NetworkInfoManager.shared.cleanup()
             statusBarController?.cleanup()
         }
     }

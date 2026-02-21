@@ -12,5 +12,8 @@ extension Notification.Name {
     
     /// Notification about VPN connection status update.
     static let vpnConnectionStatusDidUpdate = Notification.Name("VPNConnectionStatusDidUpdate")
+
+    /// Notification about per-connection hotkey assignments change.
+    static let connectionHotkeysDidChange = Notification.Name("ConnectionHotkeysDidChange")
 }
 

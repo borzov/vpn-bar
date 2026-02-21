@@ -33,10 +33,7 @@ protocol VPNManagerProtocol: ObservableObject {
     /// Toggles connection state (connect/disconnect).
     /// - Parameter connectionID: Connection identifier.
     func toggleConnection(_ connectionID: String)
-    
-    /// Disconnects all active connections.
-    func disconnectAll()
-    
+
     /// Releases resources when the application terminates.
     func cleanup()
 }

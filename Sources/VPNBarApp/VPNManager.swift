@@ -20,27 +20,14 @@ class VPNManager: VPNManagerProtocol {
                 )
             }
         }
-        
+
         let sessionManager = VPNSessionManager(statusUpdateHandler: statusHandler)
-        
+
         let manager = VPNManager(
             configurationLoader: VPNConfigurationLoader(),
             sessionManager: sessionManager
         )
-        
-        // Subscribe to status updates after initialization
-        NotificationCenter.default.addObserver(
-            forName: .vpnConnectionStatusDidUpdate,
-            object: nil,
-            queue: .main
-        ) { notification in
-            guard let connectionID = notification.userInfo?["connectionID"] as? String,
-                  let status = notification.userInfo?["status"] as? SCNetworkConnectionStatus else {
-                return
-            }
-            manager.updateConnectionStatus(identifier: connectionID, newStatus: status)
-        }
-        
+
         return manager
     }()
     
@@ -62,6 +49,10 @@ class VPNManager: VPNManagerProtocol {
     /// if disconnection doesn't complete within the specified time.
     /// Tasks are automatically cancelled upon successful disconnection.
     private var disconnectTimeoutTasks: [String: Task<Void, Never>] = [:]
+    /// Connection ID to connect after all active connections are fully disconnected.
+    private var pendingConnectionID: String?
+    /// Token for the status update notification observer.
+    private var statusObserverToken: NSObjectProtocol?
     
     /// Update interval for the connections list; restarts monitoring when changed.
     var updateInterval: TimeInterval {
@@ -102,19 +93,23 @@ class VPNManager: VPNManagerProtocol {
                 }
             }
             self.sessionManager = VPNSessionManager(statusUpdateHandler: statusHandler)
-            
-            // Subscribe to status updates
-            NotificationCenter.default.addObserver(
-                forName: .vpnConnectionStatusDidUpdate,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                guard let self = self,
-                      let connectionID = notification.userInfo?["connectionID"] as? String,
-                      let status = notification.userInfo?["status"] as? SCNetworkConnectionStatus else {
-                    return
-                }
-                self.updateConnectionStatus(identifier: connectionID, newStatus: status)
+        }
+
+        // Always subscribe to status updates.
+        // For shared instance: VPNSessionManager posts them via statusHandler.
+        // For tests with MockVPNSessionManager: mock doesn't post notifications, observer won't fire.
+        self.statusObserverToken = NotificationCenter.default.addObserver(
+            forName: .vpnConnectionStatusDidUpdate,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self,
+                  let connectionID = notification.userInfo?["connectionID"] as? String,
+                  let status = notification.userInfo?["status"] as? SCNetworkConnectionStatus else {
+                return
+            }
+            Task { @MainActor in
+                self.handleStatusUpdate(connectionID: connectionID, scStatus: status)
             }
         }
         
@@ -126,9 +121,9 @@ class VPNManager: VPNManagerProtocol {
     deinit {
         updateTimer?.invalidate()
         updateTimer = nil
-        NotificationCenter.default.removeObserver(self)
-        // Note: deinit cannot call @MainActor methods synchronously
-        // Cleanup will be performed at application termination via AppDelegate
+        if let token = statusObserverToken {
+            NotificationCenter.default.removeObserver(token)
+        }
     }
     
     /// Loads available VPN configurations.
@@ -274,11 +269,11 @@ class VPNManager: VPNManagerProtocol {
         resetConnectionToDisconnected(connectionID: connectionID)
     }
     
-    /// Updates connection status if it differs from current status.
+    /// Sets connection status if it differs from current status.
     /// - Parameters:
     ///   - id: Connection identifier.
     ///   - status: New status to set.
-    private func updateConnectionStatus(id: String, status: VPNConnection.VPNStatus) {
+    private func setConnectionStatus(id: String, status: VPNConnection.VPNStatus) {
         guard let index = connections.firstIndex(where: { $0.id == id }) else { return }
         guard connections[index].status != status else { return }
         
@@ -289,7 +284,7 @@ class VPNManager: VPNManagerProtocol {
     }
     
     private func updateConnectionToConnecting(connectionID: String) {
-        updateConnectionStatus(id: connectionID, status: .connecting)
+        setConnectionStatus(id: connectionID, status: .connecting)
     }
     
     
@@ -319,7 +314,7 @@ class VPNManager: VPNManagerProtocol {
     /// Used when connection attempts fail after all retries are exhausted.
     /// - Parameter connectionID: Connection identifier to reset status for.
     private func resetConnectionToDisconnected(connectionID: String) {
-        updateConnectionStatus(id: connectionID, status: .disconnected)
+        setConnectionStatus(id: connectionID, status: .disconnected)
     }
     
     
@@ -340,7 +335,7 @@ class VPNManager: VPNManagerProtocol {
                 return
             }
 
-            updateConnectionStatus(id: connectionID, status: .disconnecting)
+            setConnectionStatus(id: connectionID, status: .disconnecting)
 
             // Cancel any existing timeout task for this connection
             disconnectTimeoutTasks[connectionID]?.cancel()
@@ -352,8 +347,9 @@ class VPNManager: VPNManagerProtocol {
                     if !Task.isCancelled {
                         Logger.vpn.error("Disconnection timeout for: \(connectionID)")
                         self.loadingError = .connectionFailed(underlying: "Disconnection timeout after \(AppConstants.connectionTimeout) seconds")
-                        self.updateConnectionStatus(id: connectionID, status: .disconnected)
+                        self.setConnectionStatus(id: connectionID, status: .disconnected)
                         self.disconnectTimeoutTasks.removeValue(forKey: connectionID)
+                        self.checkAndConnectPending()
                     }
                 } catch {
                     // Task was cancelled - normal flow
@@ -382,7 +378,7 @@ class VPNManager: VPNManagerProtocol {
                                 )
                             }
                         }
-                        self.updateConnectionStatus(identifier: connectionID, newStatus: status)
+                        self.handleStatusUpdate(connectionID: connectionID, scStatus: status)
                     }
                 }
             } catch {
@@ -390,63 +386,80 @@ class VPNManager: VPNManagerProtocol {
                 disconnectTimeoutTasks.removeValue(forKey: connectionID)
                 Logger.vpn.error("Disconnection failed: \(connectionID)")
                 loadingError = .connectionFailed(underlying: error.localizedDescription)
-                updateConnectionStatus(identifier: connectionID, newStatus: .disconnected)
+                handleStatusUpdate(connectionID: connectionID, scStatus: .disconnected)
             }
         }
     }
     
     /// Toggles the state of the specified connection.
+    /// If another connection is active, disconnects it first and queues the new connection.
     /// - Parameter connectionID: Connection identifier.
     func toggleConnection(_ connectionID: String) {
         guard let connection = connections.first(where: { $0.id == connectionID }) else {
             return
         }
-        
+
         SettingsManager.shared.lastUsedConnectionID = connectionID
-        
+
         if connection.status.isActive {
+            pendingConnectionID = nil
             disconnect(from: connectionID)
         } else {
-            connect(to: connectionID, retryCount: AppConstants.defaultRetryCount)
+            let activeOthers = connections.filter { $0.id != connectionID && $0.status.isActive }
+            if activeOthers.isEmpty {
+                connect(to: connectionID, retryCount: AppConstants.defaultRetryCount)
+            } else {
+                pendingConnectionID = connectionID
+                for active in activeOthers {
+                    disconnect(from: active.id)
+                }
+            }
         }
     }
     
-    /// Disconnects all active VPN connections.
-    func disconnectAll() {
-        let activeConnections = connections.filter { $0.status.isActive }
-        
-        for connection in activeConnections {
-            disconnect(from: connection.id)
-        }
-    }
-
-    
-    private func updateConnectionStatus(identifier: String, newStatus: SCNetworkConnectionStatus) {
-        guard let index = connections.firstIndex(where: { $0.id == identifier }) else {
+    /// Connects to the pending connection if all others are fully disconnected.
+    private func checkAndConnectPending() {
+        guard let pending = pendingConnectionID else { return }
+        guard connections.contains(where: { $0.id == pending }) else {
+            pendingConnectionID = nil
             return
         }
-        
-        let vpnStatus = convertToVPNStatus(from: newStatus)
+        let allOthersDisconnected = connections.allSatisfy {
+            $0.id == pending || $0.status == .disconnected
+        }
+        guard allOthersDisconnected else { return }
+        pendingConnectionID = nil
+        connect(to: pending, retryCount: AppConstants.defaultRetryCount)
+    }
+
+    private func handleStatusUpdate(connectionID: String, scStatus: SCNetworkConnectionStatus) {
+        guard let index = connections.firstIndex(where: { $0.id == connectionID }) else {
+            return
+        }
+
+        let vpnStatus = convertToVPNStatus(from: scStatus)
         let oldStatus = connections[index].status
-        
+
         if oldStatus != vpnStatus {
             var updatedConnections = connections
             updatedConnections[index].status = vpnStatus
             connections = updatedConnections
             updateActiveStatus()
-            
+
             if oldStatus != .connected && vpnStatus == .connected {
                 SoundFeedbackManager.shared.play(.connectionSuccess)
                 StatisticsManager.shared.recordConnection()
-                if let connection = connections.first(where: { $0.id == identifier }) {
+                if let connection = connections.first(where: { $0.id == connectionID }) {
                     ConnectionHistoryManager.shared.addEntry(
-                        connectionID: identifier,
+                        connectionID: connectionID,
                         connectionName: connection.name,
                         action: .connected
                     )
                 }
             }
         }
+
+        checkAndConnectPending()
     }
     
     private func getCachedConnectionStatus(for identifier: String) async -> VPNConnection.VPNStatus {
@@ -526,7 +539,7 @@ class VPNManager: VPNManagerProtocol {
             for connection in connections {
                 await sessionManager.getSessionStatus(connectionID: connection.id) { [weak self] status in
                     Task { @MainActor in
-                        self?.updateConnectionStatus(identifier: connection.id, newStatus: status)
+                        self?.handleStatusUpdate(connectionID: connection.id, scStatus: status)
                     }
                 }
             }
@@ -574,7 +587,11 @@ class VPNManager: VPNManagerProtocol {
             task.cancel()
         }
         disconnectTimeoutTasks.removeAll()
-        
+        if let token = statusObserverToken {
+            NotificationCenter.default.removeObserver(token)
+            statusObserverToken = nil
+        }
+
         Task {
             await sessionManager.cleanup()
         }

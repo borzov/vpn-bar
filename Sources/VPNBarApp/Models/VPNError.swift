@@ -28,18 +28,23 @@ enum VPNError: LocalizedError, Equatable {
         case .noConfigurations:
             return NSLocalizedString("error.vpn.noConfigurations", comment: "")
         case .connectionNotFound(let id):
-            return String(format: NSLocalizedString("error.vpn.connectionNotFound", comment: ""), id)
+            return Self.formatWithFallback(key: "error.vpn.connectionNotFound", param: id)
         case .sessionNotFound(let id):
-            return String(format: NSLocalizedString("error.vpn.sessionNotFound", comment: ""), id)
+            return Self.formatWithFallback(key: "error.vpn.sessionNotFound", param: id)
         case .sessionCreationFailed(let id):
-            return String(format: NSLocalizedString("error.vpn.sessionCreateFailed", comment: ""), id)
+            return Self.formatWithFallback(key: "error.vpn.sessionCreateFailed", param: id)
         case .frameworkLoadFailed(let reason):
-            return String(format: NSLocalizedString("error.vpn.loadFrameworkFailed", comment: ""), reason)
+            return Self.formatWithFallback(key: "error.vpn.loadFrameworkFailed", param: reason)
         case .connectionFailed(let underlying):
             return underlying ?? NSLocalizedString("error.vpn.connectionFailed", comment: "")
         case .sharedManagerUnavailable:
             return NSLocalizedString("error.vpn.sharedManagerUnavailable", comment: "")
         }
+    }
+
+    private static func formatWithFallback(key: String, param: String) -> String {
+        let fmt = NSLocalizedString(key, comment: "")
+        return fmt.contains("%@") ? String(format: fmt, param) : "\(fmt) \(param)"
     }
 }
 

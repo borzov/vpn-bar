@@ -35,6 +35,18 @@ enum AppConstants {
     /// Delay before sending status change notification in seconds.
     static let notificationDelay: TimeInterval = 0.5
     
+    /// Network info cache duration in seconds.
+    static let networkInfoCacheDuration: TimeInterval = 30.0
+
+    /// Delay before refreshing network info after VPN status change in seconds.
+    static let networkInfoRefreshDelay: TimeInterval = 3.0
+
+    /// Network info related constants.
+    enum NetworkInfo {
+        static let geoIPURL = URL(string: "https://ipapi.co/json/")!
+        static let requestTimeout: TimeInterval = 10.0
+    }
+
     /// URLs used in the application.
     enum URLs {
         static let repository: URL = {

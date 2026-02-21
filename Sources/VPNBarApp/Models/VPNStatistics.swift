@@ -24,64 +24,63 @@ final class StatisticsManager {
     private let userDefaults = UserDefaults.standard
     private let statisticsKey = "vpnStatistics"
     private var currentSessionStart: Date?
-    private var statistics: VPNStatistics {
-        get {
-            guard let data = userDefaults.data(forKey: statisticsKey),
-                  let stats = try? JSONDecoder().decode(VPNStatistics.self, from: data) else {
-                return VPNStatistics()
-            }
-            return stats
-        }
-        set {
-            if let data = try? JSONEncoder().encode(newValue) {
-                userDefaults.set(data, forKey: statisticsKey)
-            }
+    private var cachedStatistics: VPNStatistics
+
+    private func persistStatistics() {
+        if let data = try? JSONEncoder().encode(cachedStatistics) {
+            userDefaults.set(data, forKey: statisticsKey)
         }
     }
-    
-    private init() {}
+
+    private init() {
+        if let data = userDefaults.data(forKey: statisticsKey),
+           let stats = try? JSONDecoder().decode(VPNStatistics.self, from: data) {
+            cachedStatistics = stats
+        } else {
+            cachedStatistics = VPNStatistics()
+        }
+    }
     
     /// Gets current statistics.
     func getStatistics() -> VPNStatistics {
-        return statistics
+        return cachedStatistics
     }
-    
+
     /// Records connection start.
     func recordConnection() {
         currentSessionStart = Date()
-        var stats = statistics
-        stats.totalConnections += 1
-        stats.lastConnectionDate = Date()
-        statistics = stats
+        cachedStatistics.totalConnections += 1
+        cachedStatistics.lastConnectionDate = Date()
+        persistStatistics()
     }
-    
+
     /// Records connection end.
     func recordDisconnection() {
         guard let start = currentSessionStart else { return }
 
         let duration = Date().timeIntervalSince(start)
-        var stats = statistics
-        stats.totalDisconnections += 1
-        stats.totalConnectionTime += duration
-        stats.lastDisconnectionDate = Date()
+        cachedStatistics.totalDisconnections += 1
+        cachedStatistics.totalConnectionTime += duration
+        cachedStatistics.lastDisconnectionDate = Date()
 
-        if duration > stats.longestSessionDuration {
-            stats.longestSessionDuration = duration
+        if duration > cachedStatistics.longestSessionDuration {
+            cachedStatistics.longestSessionDuration = duration
         }
 
-        if let currentShortest = stats.shortestSessionDuration, duration < currentShortest {
-            stats.shortestSessionDuration = duration
-        } else if stats.shortestSessionDuration == nil {
-            stats.shortestSessionDuration = duration
+        if let currentShortest = cachedStatistics.shortestSessionDuration, duration < currentShortest {
+            cachedStatistics.shortestSessionDuration = duration
+        } else if cachedStatistics.shortestSessionDuration == nil {
+            cachedStatistics.shortestSessionDuration = duration
         }
 
-        statistics = stats
+        persistStatistics()
         currentSessionStart = nil
     }
-    
+
     /// Resets statistics.
     func resetStatistics() {
-        statistics = VPNStatistics()
+        cachedStatistics = VPNStatistics()
+        persistStatistics()
         currentSessionStart = nil
     }
 }

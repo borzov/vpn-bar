@@ -28,9 +28,13 @@ final class StatusItemViewModel {
     private var cancellables = Set<AnyCancellable>()
     private var fallbackTimer: Timer?
 
-    init(vpnManager: VPNManagerProtocol, settings: SettingsManagerProtocol) {
+    /// Fallback poll interval when VPN manager does not expose a connections publisher (e.g. in tests). Default uses `AppConstants.minUpdateInterval`.
+    private let fallbackPollInterval: TimeInterval
+
+    init(vpnManager: VPNManagerProtocol, settings: SettingsManagerProtocol, fallbackPollInterval: TimeInterval? = nil) {
         self.vpnManager = vpnManager
         self.settings = settings
+        self.fallbackPollInterval = fallbackPollInterval ?? AppConstants.minUpdateInterval
 
         state = StatusItemViewModel.makeState(
             connections: vpnManager.connections,
@@ -67,7 +71,7 @@ final class StatusItemViewModel {
     }
 
     private func setupFallbackTimer() {
-        fallbackTimer = Timer.scheduledTimer(withTimeInterval: AppConstants.minUpdateInterval, repeats: true) { [weak self] _ in
+        fallbackTimer = Timer.scheduledTimer(withTimeInterval: fallbackPollInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.updateStateFromManager()
             }
