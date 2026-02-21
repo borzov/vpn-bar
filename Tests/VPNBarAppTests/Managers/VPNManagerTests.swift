@@ -79,14 +79,6 @@ final class VPNManagerTests: XCTestCase {
         throw XCTSkip("VPNManager.shared initializes system APIs which may hang in CI")
     }
     
-    func test_disconnectAll_withActiveConnections_disconnectsAll() async throws {
-        throw XCTSkip("VPNManager.shared initializes system APIs which may hang in CI")
-    }
-    
-    func test_disconnectAll_withNoActiveConnections_doesNothing() throws {
-        throw XCTSkip("VPNManager.shared initializes system APIs which may hang in CI")
-    }
-    
     func test_hasActiveConnection_publishesWhenConnectionChanges() throws {
         throw XCTSkip("VPNManager.shared initializes system APIs which may hang in CI")
     }

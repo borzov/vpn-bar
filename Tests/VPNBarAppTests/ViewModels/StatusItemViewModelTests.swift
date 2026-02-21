@@ -17,7 +17,8 @@ final class StatusItemViewModelTests: XCTestCase {
         
         sut = StatusItemViewModel(
             vpnManager: mockVPNManager,
-            settings: mockSettingsManager
+            settings: mockSettingsManager,
+            fallbackPollInterval: 0.05
         )
     }
     

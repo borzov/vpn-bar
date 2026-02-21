@@ -18,8 +18,7 @@ final class MockVPNManager: VPNManagerProtocol {
     var disconnectConnectionID: String?
     var toggleConnectionCalled = false
     var toggleConnectionID: String?
-    var disconnectAllCalled = false
-    
+
     var loadConnectionsResult: Result<[VPNConnection], Error>?
     var connectShouldSucceed = true
     var disconnectShouldSucceed = true
@@ -86,15 +85,7 @@ final class MockVPNManager: VPNManagerProtocol {
             }
         }
     }
-    
-    func disconnectAll() {
-        disconnectAllCalled = true
-        let activeConnections = connections.filter { $0.status.isActive }
-        for connection in activeConnections {
-            disconnect(from: connection.id)
-        }
-    }
-    
+
     func cleanup() {
         // Mock implementation - nothing to cleanup
     }
@@ -116,7 +107,6 @@ final class MockVPNManager: VPNManagerProtocol {
         disconnectConnectionID = nil
         toggleConnectionCalled = false
         toggleConnectionID = nil
-        disconnectAllCalled = false
         loadConnectionsResult = nil
         connectShouldSucceed = true
         disconnectShouldSucceed = true

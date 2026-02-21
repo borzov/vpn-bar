@@ -32,21 +32,22 @@ final class SnapshotTests: XCTestCase {
             VPNConnection(id: "2", name: "VPN 2", serviceID: "2", status: .disconnected),
             VPNConnection(id: "3", name: "VPN 3", serviceID: "3", status: .connecting)
         ]
-        
+
         mockVPNManager.connections = connections
-        let menuController = MenuController(vpnManager: mockVPNManager)
-        
-        // В тестовой среде menu может быть nil, создаем тестовое меню напрямую
+        mockVPNManager.hasActiveConnection = true
+        let mockNetworkInfoManager = MockNetworkInfoManager()
+        let menuController = MenuController(vpnManager: mockVPNManager, networkInfoManager: mockNetworkInfoManager)
+
         let menu = NSMenu()
         menuController.buildMenu(menu: menu)
-        
-        // Создаем изображение меню для snapshot
+
         let menuView = createMenuView(menu: menu)
-        
+
         assertSnapshot(
             of: menuView,
             as: .image,
             named: "menu_with_connections",
+            record: false,
             testName: "MenuController"
         )
     }

@@ -5,24 +5,28 @@ import XCTest
 final class SettingsManagerTests: XCTestCase {
     var sut: SettingsManager!
     var testUserDefaults: UserDefaults!
-    
+    private var suiteName: String!
+
     override func setUp() {
         super.setUp()
-        testUserDefaults = UserDefaults(suiteName: "test.\(UUID().uuidString)")
-        testUserDefaults.removePersistentDomain(forName: "test.\(UUID().uuidString)")
-        sut = SettingsManager.shared
+        suiteName = "test.\(UUID().uuidString)"
+        testUserDefaults = UserDefaults(suiteName: suiteName)
+        testUserDefaults.removePersistentDomain(forName: suiteName)
+        sut = SettingsManager(userDefaults: testUserDefaults)
     }
-    
+
     override func tearDown() {
+        testUserDefaults.removePersistentDomain(forName: suiteName)
+        suiteName = nil
         testUserDefaults = nil
         sut = nil
         super.tearDown()
     }
-    
+
     func test_shared_isSingleton() {
         let instance1 = SettingsManager.shared
         let instance2 = SettingsManager.shared
-        
+
         XCTAssertTrue(instance1 === instance2)
     }
     
