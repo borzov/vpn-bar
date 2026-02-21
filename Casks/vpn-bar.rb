@@ -1,5 +1,5 @@
 cask "vpn-bar" do
-  version "0.7.0"
+  version "0.8.0"
   sha256 "2be875ed69f20deda2858a931102030f43d7efa933eb2e89bf112bb7d44213dc"
 
   url "https://github.com/borzov/vpn-bar/releases/download/v#{version}/VPNBarApp.zip"
