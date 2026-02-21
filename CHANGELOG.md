@@ -9,15 +9,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## [0.8.0] - 2026-02-20
 
 ### Added
-- Per-connection hotkeys: assign individual keyboard shortcuts to specific VPN connections for quick toggling without opening the menu
-- Network info in menu: public IP address, country, and city are shown when VPN is connected — click the IP to copy it to clipboard
-- Automatic network info refresh after VPN status changes
+- Per-connection hotkeys: assign individual keyboard shortcuts to specific VPN connections for quick toggling without opening the menu; shortcuts are shown next to connection names in the context menu
+- Network info in menu: when VPN is connected, the context menu shows public IP address, country, and city — click the IP line to copy it to clipboard
+- Automatic network info refresh after VPN status changes (with short delay); placeholder "Obtaining network info…" is shown while loading
+
+### Removed
+- "Disconnect All" menu item and related functionality, since only one connection can be active at a time
 
 ### Fixed
 - Menu bar icon animation now stops immediately after VPN connects or disconnects (previously delayed up to 15 seconds due to missed status notifications)
 - IP address and country info are now hidden when no VPN is connected
 - Switching to a new VPN connection now properly disconnects the currently active one before connecting
-- Connection hotkeys settings list now displays with proper visual list style and row separators
+- Connection hotkeys settings list now displays with proper visual list style, row separators, and the description text is fully visible
 
 ---
 

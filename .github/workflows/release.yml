@@ -79,13 +79,19 @@ jobs:
       id: release_notes
       run: |
         if [ -f CHANGELOG.md ]; then
-          # Extract changelog for this version
           VERSION=${{ steps.get_version.outputs.version }}
-          # Try to extract section from CHANGELOG.md
-          NOTES=$(awk "/^### Version ${VERSION//./\\.}/,/^### /" CHANGELOG.md | head -n -1 || echo "Release v$VERSION")
+          # Extract section from CHANGELOG.md: ## [X.Y.Z] up to next ## [ or ---
+          NOTES=$(awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { found=1; print; next }
+            found && /^## \[/ { exit }
+            found && /^---$/ { exit }
+            found { print }
+          ' CHANGELOG.md) || true
+          if [ -z "$NOTES" ]; then
+            NOTES="Release v$VERSION"
+          fi
         else
-          # Use last commit message as fallback
-          NOTES=$(git log -1 --pretty=%B)
+          NOTES="Release v$VERSION"
         fi
         echo "notes<<EOF" >> $GITHUB_OUTPUT
         echo "$NOTES" >> $GITHUB_OUTPUT
@@ -94,7 +100,7 @@ jobs:
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        name: Release v${{ steps.get_version.outputs.version }}
+        name: v${{ steps.get_version.outputs.version }}
         body: ${{ steps.release_notes.outputs.notes }}
         files: |
           VPNBarApp.zip
