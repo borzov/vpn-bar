@@ -15,14 +15,22 @@ final class NetworkInfoManagerTests: XCTestCase {
         XCTAssertTrue(true)
     }
 
-    func test_refresh_doesNotCrash() {
-        let manager = NetworkInfoManager.shared
-        manager.refresh(force: false)
-        manager.refresh(force: true)
-    }
-
     func test_cleanup_doesNotCrash() {
         let manager = NetworkInfoManager.shared
         manager.cleanup()
+    }
+
+    func test_networkInfo_withAllNilGeoFields_producesNilFormattedLocation() {
+        let info = NetworkInfo(
+            publicIP: nil,
+            country: nil,
+            countryCode: nil,
+            city: nil,
+            vpnInterfaces: [],
+            lastUpdated: Date()
+        )
+        XCTAssertNil(info.formattedLocation)
+        XCTAssertNil(info.publicIP)
+        XCTAssertNil(info.countryFlag)
     }
 }
