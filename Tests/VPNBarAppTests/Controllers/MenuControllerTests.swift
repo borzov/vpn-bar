@@ -49,5 +49,56 @@ final class MenuControllerTests: XCTestCase {
         XCTAssertTrue(mockVPNManager.toggleConnectionCalled)
         XCTAssertEqual(mockVPNManager.toggleConnectionID, connection.id)
     }
+
+    func test_buildMenu_withActiveConnectionAndNetworkInfo_showsIPAndCountryInMenu() {
+        mockVPNManager.hasActiveConnection = true
+        let mockNetworkInfoManager = MockNetworkInfoManager()
+        mockNetworkInfoManager.networkInfo = NetworkInfo(
+            publicIP: "203.0.113.42",
+            country: "Germany",
+            countryCode: "DE",
+            city: "Berlin",
+            vpnInterfaces: [VPNInterface(name: "utun6", address: "10.0.0.2")],
+            lastUpdated: Date()
+        )
+        sut = MenuController(vpnManager: mockVPNManager, networkInfoManager: mockNetworkInfoManager)
+
+        let menu = NSMenu()
+        sut.buildMenu(menu: menu)
+
+        let titles = menu.items.map(\.title)
+        XCTAssertTrue(
+            titles.contains(where: { $0.contains("203.0.113.42") }),
+            "Menu should contain IP address"
+        )
+        XCTAssertTrue(
+            titles.contains(where: { $0.contains("Germany") && $0.contains("Berlin") }),
+            "Menu should contain location"
+        )
+        XCTAssertTrue(
+            titles.contains(where: { $0.contains("utun6") && $0.contains("10.0.0.2") }),
+            "Menu should contain VPN interface"
+        )
+    }
+
+    func test_buildMenu_withActiveConnectionAndNilNetworkInfo_showsFetchingPlaceholder() {
+        mockVPNManager.hasActiveConnection = true
+        let mockNetworkInfoManager = MockNetworkInfoManager()
+        mockNetworkInfoManager.networkInfo = nil
+        sut = MenuController(vpnManager: mockVPNManager, networkInfoManager: mockNetworkInfoManager)
+
+        let menu = NSMenu()
+        sut.buildMenu(menu: menu)
+
+        let fetchingTitle = NSLocalizedString(
+            "menu.networkInfo.fetching",
+            comment: "Placeholder while loading network info"
+        )
+        let titles = menu.items.map(\.title)
+        XCTAssertTrue(
+            titles.contains(fetchingTitle),
+            "Menu should show fetching placeholder when networkInfo is nil"
+        )
+    }
 }
 

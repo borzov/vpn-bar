@@ -186,6 +186,15 @@ class MenuController {
         } else {
             updateMenu()
         }
+
+        if let networkInfoManager = networkInfoManager as? NetworkInfoManager {
+            networkInfoManager.$networkInfo
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    self?.updateMenu()
+                }
+                .store(in: &cancellables)
+        }
     }
     
     // MARK: - Network Info

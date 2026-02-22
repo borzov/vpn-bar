@@ -1,6 +1,7 @@
 import Foundation
 import os.log
 import Darwin
+import SystemConfiguration
 
 /// Manages network information: public IP, geolocation, and VPN interfaces.
 @MainActor
@@ -12,12 +13,15 @@ final class NetworkInfoManager: NetworkInfoManagerProtocol {
     private var lastFetchDate: Date?
     private var fetchTask: Task<Void, Never>?
     private var statusObserverToken: NSObjectProtocol?
+    private var isFetching = false
 
     private init() {
         observeVPNStatusChanges()
     }
 
     func refresh(force: Bool = false) {
+        guard !isFetching else { return }
+
         if !force, let lastFetch = lastFetchDate,
            Date().timeIntervalSince(lastFetch) < AppConstants.networkInfoCacheDuration {
             return
@@ -32,6 +36,7 @@ final class NetworkInfoManager: NetworkInfoManagerProtocol {
     func cleanup() {
         fetchTask?.cancel()
         fetchTask = nil
+        isFetching = false
         if let token = statusObserverToken {
             NotificationCenter.default.removeObserver(token)
             statusObserverToken = nil
@@ -43,9 +48,14 @@ final class NetworkInfoManager: NetworkInfoManagerProtocol {
             forName: .vpnConnectionStatusDidUpdate,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] notification in
             Task { @MainActor in
                 guard let self = self else { return }
+                if let status = notification.userInfo?["status"] as? SCNetworkConnectionStatus,
+                   status == .disconnected || status == .invalid {
+                    self.networkInfo = nil
+                    self.lastFetchDate = nil
+                }
                 try? await Task.sleep(nanoseconds: UInt64(AppConstants.networkInfoRefreshDelay * 1_000_000_000))
                 guard !Task.isCancelled else { return }
                 self.refresh(force: true)
@@ -54,33 +64,40 @@ final class NetworkInfoManager: NetworkInfoManagerProtocol {
     }
 
     private func fetchNetworkInfo() async {
+        defer { isFetching = false }
+
         guard !Task.isCancelled else { return }
 
+        isFetching = true
         let vpnInterfaces = detectVPNInterfaces()
         let geoInfo = await fetchGeoIP()
 
         guard !Task.isCancelled else { return }
 
-        let info = NetworkInfo(
-            publicIP: geoInfo?.ip,
-            country: geoInfo?.country,
-            countryCode: geoInfo?.countryCode,
-            city: geoInfo?.city,
-            vpnInterfaces: vpnInterfaces,
-            lastUpdated: Date()
-        )
-
-        networkInfo = info
-        lastFetchDate = Date()
+        if let geo = geoInfo {
+            let info = NetworkInfo(
+                publicIP: geo.ip,
+                country: geo.country,
+                countryCode: geo.countryCode,
+                city: geo.city,
+                vpnInterfaces: vpnInterfaces,
+                lastUpdated: Date()
+            )
+            networkInfo = info
+            lastFetchDate = Date()
+        } else {
+            networkInfo = nil
+        }
     }
 
     // MARK: - GeoIP
 
     private struct GeoIPResponse: Decodable {
-        let ip: String?
-        let country_name: String?
-        let country_code: String?
+        let status: String?
+        let country: String?
+        let countryCode: String?
         let city: String?
+        let query: String?
     }
 
     private struct GeoInfo {
@@ -98,19 +115,23 @@ final class NetworkInfoManager: NetworkInfoManagerProtocol {
 
             let (data, response) = try await URLSession.shared.data(for: request)
 
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200 else {
-                Logger.vpn.warning("GeoIP request failed with non-200 status")
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
                 return nil
             }
 
             let decoded = try JSONDecoder().decode(GeoIPResponse.self, from: data)
-            return GeoInfo(
-                ip: decoded.ip,
-                country: decoded.country_name,
-                countryCode: decoded.country_code,
+            guard decoded.status == "success" else {
+                return nil
+            }
+
+            let geoInfo = GeoInfo(
+                ip: decoded.query,
+                country: decoded.country,
+                countryCode: decoded.countryCode,
                 city: decoded.city
             )
+            let hasAnyGeoData = geoInfo.ip != nil || geoInfo.country != nil || geoInfo.countryCode != nil || geoInfo.city != nil
+            return hasAnyGeoData ? geoInfo : nil
         } catch {
             Logger.vpn.warning("GeoIP fetch failed: \(error.localizedDescription)")
             return nil
